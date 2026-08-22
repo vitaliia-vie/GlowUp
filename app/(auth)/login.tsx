@@ -1,13 +1,14 @@
+import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
@@ -25,7 +26,6 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       await signIn(email, password);
-      // Redirect to the right home happens automatically in RootLayout
     } catch (error: any) {
       Alert.alert("Login failed", error.message ?? "Please try again.");
     } finally {
@@ -35,12 +35,13 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>BeautyBook</Text>
+      <Text style={styles.title}>GlowUp</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor={colors.textSecondary}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -49,6 +50,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor={colors.textSecondary}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -76,36 +78,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "#FFF8F9",
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#2E2A2B",
+    color: colors.textPrimary,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
-    color: "#8A8384",
+    color: colors.textSecondary,
     textAlign: "center",
     marginBottom: 32,
   },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#F0E3E6",
+    borderColor: colors.border,
+    color: colors.textPrimary,
   },
   button: {
-    backgroundColor: "#FF8FB1",
+    backgroundColor: colors.accent,
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
     marginTop: 8,
   },
-  buttonText: { color: "#FFFFFF", fontWeight: "600", fontSize: 16 },
+  buttonText: { color: colors.accentText, fontWeight: "600", fontSize: 16 },
   link: { marginTop: 20, alignSelf: "center" },
-  linkText: { color: "#B5657F" },
+  linkText: { color: colors.textSecondary },
 });

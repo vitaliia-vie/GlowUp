@@ -1,9 +1,10 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
 export default function MasterLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="services" />
     </Stack>
   );
 }

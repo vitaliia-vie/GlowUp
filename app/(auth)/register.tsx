@@ -1,14 +1,15 @@
+import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/types";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function RegisterScreen() {
@@ -77,12 +78,14 @@ export default function RegisterScreen() {
       <TextInput
         style={styles.input}
         placeholder="Name"
+        placeholderTextColor={colors.textSecondary}
         value={displayName}
         onChangeText={setDisplayName}
       />
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor={colors.textSecondary}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -91,6 +94,7 @@ export default function RegisterScreen() {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor={colors.textSecondary}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -118,19 +122,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "#FFF8F9",
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#2E2A2B",
+    color: colors.textPrimary,
     textAlign: "center",
     marginBottom: 24,
   },
   roleSwitch: {
     flexDirection: "row",
     marginBottom: 20,
-    backgroundColor: "#F0E3E6",
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     padding: 4,
   },
@@ -140,25 +144,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  roleOptionActive: { backgroundColor: "#FF8FB1" },
-  roleText: { color: "#8A8384", fontWeight: "600" },
-  roleTextActive: { color: "#FFFFFF" },
+  roleOptionActive: { backgroundColor: colors.accent },
+  roleText: { color: colors.textSecondary, fontWeight: "600" },
+  roleTextActive: { color: colors.accentText },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#F0E3E6",
+    borderColor: colors.border,
+    color: colors.textPrimary,
   },
   button: {
-    backgroundColor: "#FF8FB1",
+    backgroundColor: colors.accent,
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
     marginTop: 8,
   },
-  buttonText: { color: "#FFFFFF", fontWeight: "600", fontSize: 16 },
+  buttonText: { color: colors.accentText, fontWeight: "600", fontSize: 16 },
   link: { marginTop: 20, alignSelf: "center" },
-  linkText: { color: "#B5657F" },
+  linkText: { color: colors.textSecondary },
 });

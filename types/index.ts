@@ -12,9 +12,27 @@ export interface UserProfile {
   createdAt: number;
 }
 
+export type ServiceCategory =
+  | "nails"
+  | "lashes"
+  | "hair"
+  | "brows"
+  | "skincare"
+  | "makeup";
+
+export const SERVICE_CATEGORIES: { id: ServiceCategory; label: string }[] = [
+  { id: "nails", label: "Nails" },
+  { id: "lashes", label: "Lashes" },
+  { id: "hair", label: "Hair" },
+  { id: "brows", label: "Brows" },
+  { id: "skincare", label: "Skincare" },
+  { id: "makeup", label: "Makeup" },
+];
+
 export interface Service {
   id: string;
   masterId: string;
+  category: ServiceCategory;
   title: string;
   price: number;
   durationMinutes: number;

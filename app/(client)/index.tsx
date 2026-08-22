@@ -14,16 +14,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 export default function ClientHome() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
-
   const [masters, setMasters] = useState<UserProfile[]>([]);
   const [selectedCategory, setSelectedCategory] =
     useState<ServiceCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const loadMasters = useCallback(async (category: ServiceCategory | null) => {
     setIsLoading(true);
     try {
@@ -37,15 +34,12 @@ export default function ClientHome() {
       setIsLoading(false);
     }
   }, []);
-
   useEffect(() => {
     loadMasters(selectedCategory);
   }, [selectedCategory, loadMasters]);
-
   const handleSelectCategory = (category: ServiceCategory) => {
     setSelectedCategory((current) => (current === category ? null : category));
   };
-
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -57,7 +51,15 @@ export default function ClientHome() {
           <Text style={styles.signOut}>Sign out</Text>
         </TouchableOpacity>
       </View>
-
+      <TouchableOpacity
+        style={styles.bookingsCard}
+        onPress={() => router.push("/(client)/bookings")}
+      >
+        <Text style={styles.bookingsCardTitle}>My Bookings</Text>
+        <Text style={styles.bookingsCardSubtitle}>
+          View, cancel or track your appointments
+        </Text>
+      </TouchableOpacity>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -83,7 +85,6 @@ export default function ClientHome() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />
       ) : (
@@ -121,7 +122,6 @@ export default function ClientHome() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -138,6 +138,21 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 22, fontWeight: "700", color: colors.textPrimary },
   subtitle: { color: colors.textSecondary, marginTop: 2 },
   signOut: { color: colors.textSecondary, fontWeight: "600" },
+  bookingsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
+  },
+  bookingsCardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  bookingsCardSubtitle: { color: colors.textSecondary, fontSize: 13 },
   categoryRow: { marginBottom: 12, maxHeight: 44 },
   categoryChip: {
     backgroundColor: colors.surface,

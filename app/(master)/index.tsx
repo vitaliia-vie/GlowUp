@@ -14,6 +14,16 @@ export default function MasterHome() {
 
       <TouchableOpacity
         style={styles.menuCard}
+        onPress={() => router.push("/(master)/bookings")}
+      >
+        <Text style={styles.menuCardTitle}>Booking Requests</Text>
+        <Text style={styles.menuCardSubtitle}>
+          Review and respond to client appointments
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.menuCard}
         onPress={() => router.push("/(master)/services")}
       >
         <Text style={styles.menuCardTitle}>My Services</Text>

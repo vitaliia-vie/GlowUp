@@ -126,9 +126,10 @@ export default function BookingScreen() {
         date: selectedDate,
         timeSlot: selectedSlot,
       });
-      Alert.alert("Booked!", "Your appointment request has been sent.", [
-        { text: "OK", onPress: () => router.replace("/(client)") },
-      ]);
+      // Navigate first so the confirmation is visible on every platform —
+      // Alert.alert doesn't render a dialog on web previews.
+      router.replace("/(client)/bookings");
+      Alert.alert("Booked!", "Your appointment request has been sent.");
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to create booking.");
     } finally {

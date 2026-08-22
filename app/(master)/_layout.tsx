@@ -5,6 +5,7 @@ export default function MasterLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="services" />
+      <Stack.Screen name="bookings" />
     </Stack>
   );
 }

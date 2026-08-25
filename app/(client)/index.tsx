@@ -1,207 +1,197 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllMasters, getMastersByCategory } from "@/services/mastersApi";
+import { getMastersByCategory } from "@/services/mastersApi";
 import { SERVICE_CATEGORIES, ServiceCategory, UserProfile } from "@/types";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+
+type CategorySection = {
+  category: ServiceCategory;
+  label: string;
+  masters: UserProfile[];
+};
+
 export default function ClientHome() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
-  const [masters, setMasters] = useState<UserProfile[]>([]);
-  const [selectedCategory, setSelectedCategory] =
-    useState<ServiceCategory | null>(null);
+
+  const [sections, setSections] = useState<CategorySection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const loadMasters = useCallback(async (category: ServiceCategory | null) => {
+
+  const loadSections = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = category
-        ? await getMastersByCategory(category)
-        : await getAllMasters();
-      setMasters(data);
+      const results = await Promise.all(
+        SERVICE_CATEGORIES.map(async (cat) => ({
+          category: cat.id,
+          label: cat.label,
+          masters: await getMastersByCategory(cat.id),
+        })),
+      );
+      setSections(results.filter((s) => s.masters.length > 0));
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to load masters.");
     } finally {
       setIsLoading(false);
     }
   }, []);
+
   useEffect(() => {
-    loadMasters(selectedCategory);
-  }, [selectedCategory, loadMasters]);
-  const handleSelectCategory = (category: ServiceCategory) => {
-    setSelectedCategory((current) => (current === category ? null : category));
-  };
+    loadSections();
+  }, [loadSections]);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.greeting}>Hi, {profile?.displayName}</Text>
-          <Text style={styles.subtitle}>Find your next appointment</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
+      <View style={styles.hero}>
+        <View style={styles.heroTopRow}>
+          <TouchableOpacity onPress={signOut}>
+            <Text style={styles.signOut}>Sign out</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={signOut}>
-          <Text style={styles.signOut}>Sign out</Text>
+        <Text style={styles.heroGreeting}>Hi, {profile?.displayName} 👋</Text>
+        <Text style={styles.heroTitle}>Find your next glow-up</Text>
+        <Text style={styles.heroSubtitle}>
+          Book trusted beauty pros near you, in seconds
+        </Text>
+
+        <TouchableOpacity
+          style={styles.bookingsButton}
+          onPress={() => router.push("/(client)/bookings")}
+        >
+          <Text style={styles.bookingsButtonText}>My Bookings</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.bookingsCard}
-        onPress={() => router.push("/(client)/bookings")}
-      >
-        <Text style={styles.bookingsCardTitle}>My Bookings</Text>
-        <Text style={styles.bookingsCardSubtitle}>
-          View, cancel or track your appointments
-        </Text>
-      </TouchableOpacity>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryRow}
-      >
-        {SERVICE_CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat.id}
-            style={[
-              styles.categoryChip,
-              selectedCategory === cat.id && styles.categoryChipActive,
-            ]}
-            onPress={() => handleSelectCategory(cat.id)}
-          >
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === cat.id && styles.categoryChipTextActive,
-              ]}
-            >
-              {cat.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />
+      ) : sections.length === 0 ? (
+        <Text style={styles.emptyText}>
+          No masters have joined yet — check back soon.
+        </Text>
       ) : (
-        <FlatList
-          data={masters}
-          keyExtractor={(item) => item.uid}
-          contentContainerStyle={{ paddingTop: 8 }}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {selectedCategory
-                ? "No masters found for this category yet."
-                : "No masters have joined yet — check back soon."}
-            </Text>
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.masterCard}
-              onPress={() => router.push(`/(client)/master/${item.uid}`)}
+        sections.map((section) => (
+          <View key={section.category} style={styles.section}>
+            <Text style={styles.sectionTitle}>{section.label}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carousel}
             >
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {item.displayName?.[0]?.toUpperCase() ?? "?"}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.masterName}>{item.displayName}</Text>
-                <Text style={styles.masterSpecialization}>
-                  {item.specialization ?? "Beauty master"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
+              {section.masters.map((master) => (
+                <TouchableOpacity
+                  key={master.uid}
+                  style={styles.masterCard}
+                  onPress={() => router.push(`/(client)/master/${master.uid}`)}
+                >
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarInitial}>
+                      {master.displayName?.[0]?.toUpperCase() ?? "?"}
+                    </Text>
+                  </View>
+                  <Text style={styles.masterName} numberOfLines={1}>
+                    {master.displayName}
+                  </Text>
+                  <Text style={styles.masterSpecialization} numberOfLines={1}>
+                    {master.specialization ?? "Beauty master"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ))
       )}
-    </View>
+    </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: 20,
-    paddingTop: 60,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-  greeting: { fontSize: 22, fontWeight: "700", color: colors.textPrimary },
-  subtitle: { color: colors.textSecondary, marginTop: 2 },
-  signOut: { color: colors.textSecondary, fontWeight: "600" },
-  bookingsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
-  },
-  bookingsCardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  bookingsCardSubtitle: { color: colors.textSecondary, fontSize: 13 },
-  categoryRow: { marginBottom: 12, maxHeight: 44 },
-  categoryChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  categoryChipActive: {
+  container: { flex: 1, backgroundColor: colors.background },
+  hero: {
     backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    paddingTop: 60,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  categoryChipText: {
-    color: colors.textSecondary,
-    fontWeight: "600",
-    fontSize: 13,
+  heroTopRow: { flexDirection: "row", justifyContent: "flex-end" },
+  signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
+  heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginTop: 4 },
+  heroTitle: {
+    color: colors.accentText,
+    fontSize: 26,
+    fontWeight: "700",
+    marginTop: 6,
   },
-  categoryChipTextActive: { color: colors.accentText },
+  heroSubtitle: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  bookingsButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  bookingsButtonText: { color: colors.accent, fontWeight: "700", fontSize: 15 },
   emptyText: {
     textAlign: "center",
     color: colors.textSecondary,
-    marginTop: 24,
+    marginTop: 40,
+    paddingHorizontal: 20,
   },
+  section: { marginTop: 24 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 12,
+    marginHorizontal: 20,
+  },
+  carousel: { paddingHorizontal: 20, gap: 12 },
   masterCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    width: 130,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
-    marginBottom: 10,
+    alignItems: "center",
     borderWidth: 1,
     borderColor: colors.border,
   },
-  avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginBottom: 10,
   },
-  avatarInitial: { fontSize: 18, fontWeight: "700", color: colors.textPrimary },
-  masterName: { fontSize: 16, fontWeight: "600", color: colors.textPrimary },
+  avatarInitial: { fontSize: 20, fontWeight: "700", color: colors.textPrimary },
+  masterName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    textAlign: "center",
+  },
   masterSpecialization: {
+    fontSize: 11,
     color: colors.textSecondary,
+    textAlign: "center",
     marginTop: 2,
-    fontSize: 13,
   },
 });

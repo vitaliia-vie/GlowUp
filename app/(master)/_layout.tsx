@@ -6,6 +6,10 @@ export default function MasterLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="services" />
       <Stack.Screen name="bookings" />
+      <Stack.Screen
+        name="availability"
+        options={{ headerShown: true, headerTitle: "" }}
+      />
     </Stack>
   );
 }

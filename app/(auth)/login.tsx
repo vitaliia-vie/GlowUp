@@ -1,3 +1,4 @@
+import DevLoginButtons from "@/components/DevLoginButtons";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "expo-router";
@@ -10,19 +11,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Missing fields", "Please enter both email and password.");
       return;
     }
-
     setIsSubmitting(true);
     try {
       await signIn(email, password);
@@ -32,12 +30,10 @@ export default function LoginScreen() {
       setIsSubmitting(false);
     }
   };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>GlowUp</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
-
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -55,7 +51,6 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
       />
-
       <TouchableOpacity
         style={styles.button}
         onPress={handleLogin}
@@ -65,14 +60,15 @@ export default function LoginScreen() {
           {isSubmitting ? "Signing in..." : "Sign In"}
         </Text>
       </TouchableOpacity>
-
       <Link href="/(auth)/register" style={styles.link}>
         <Text style={styles.linkText}>Don't have an account? Sign up</Text>
       </Link>
+
+      {/* Stripped out automatically in production builds — see __DEV__ */}
+      {__DEV__ && <DevLoginButtons />}
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

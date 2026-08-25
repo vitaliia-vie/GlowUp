@@ -1,88 +1,208 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
+import { getBookingsForMaster } from "@/services/bookingsApi";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function MasterHome() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
 
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    if (!profile) return;
+    setIsLoading(true);
+    try {
+      const bookings = await getBookingsForMaster(profile.uid);
+      setPendingCount(bookings.filter((b) => b.status === "pending").length);
+    } catch (error: any) {
+      Alert.alert("Error", error.message ?? "Failed to load your stats.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome, {profile?.displayName}</Text>
-      <Text style={styles.subtitle}>Manage your services and bookings</Text>
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() => router.push("/(master)/bookings")}
-      >
-        <Text style={styles.menuCardTitle}>Booking Requests</Text>
-        <Text style={styles.menuCardSubtitle}>
-          Review and respond to client appointments
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
+      <View style={styles.hero}>
+        <View style={styles.heroTopRow}>
+          <TouchableOpacity onPress={signOut}>
+            <Text style={styles.signOut}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.heroGreeting}>Hi, {profile?.displayName} 👋</Text>
+        <Text style={styles.heroTitle}>Your studio at a glance</Text>
+        <Text style={styles.heroSubtitle}>
+          Manage requests, services and your schedule
         </Text>
-      </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() => router.push("/(master)/services")}
-      >
-        <Text style={styles.menuCardTitle}>My Services</Text>
-        <Text style={styles.menuCardSubtitle}>
-          Add, edit or remove the services you offer
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Manage your studio</Text>
 
-      <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-        <Text style={styles.signOutText}>Sign out</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity
+          style={styles.requestsCard}
+          onPress={() => router.push("/(master)/bookings")}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.requestsCardTitle}>Client Requests</Text>
+            <Text style={styles.requestsCardSubtitle}>
+              {isLoading
+                ? "Loading..."
+                : pendingCount > 0
+                  ? `${pendingCount} appointment${pendingCount > 1 ? "s" : ""} waiting for your confirmation`
+                  : "No new requests right now"}
+            </Text>
+          </View>
+          {pendingCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{pendingCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.grid}>
+          <TouchableOpacity
+            style={styles.gridCard}
+            onPress={() => router.push("/(master)/services")}
+          >
+            <Text style={styles.gridIcon}>💅</Text>
+            <Text style={styles.gridCardTitle}>My Services</Text>
+            <Text style={styles.gridCardSubtitle}>
+              Add or edit what you offer
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.gridCard}
+            onPress={() => router.push("/(master)/availability" as never)}
+          >
+            <Text style={styles.gridIcon}>🗓️</Text>
+            <Text style={styles.gridCardTitle}>Availability</Text>
+            <Text style={styles.gridCardSubtitle}>Set your working hours</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>As a client</Text>
+        <View style={styles.grid}>
+          <TouchableOpacity
+            style={styles.gridCard}
+            onPress={() => router.push("/(client)")}
+          >
+            <Text style={styles.gridIcon}>✨</Text>
+            <Text style={styles.gridCardTitle}>Book an Appointment</Text>
+            <Text style={styles.gridCardSubtitle}>
+              Treat yourself at another master
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.gridCard}
+            onPress={() => router.push("/(client)/bookings")}
+          >
+            <Text style={styles.gridIcon}>📋</Text>
+            <Text style={styles.gridCardTitle}>My Bookings</Text>
+            <Text style={styles.gridCardSubtitle}>
+              Appointments you've made
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
+  container: { flex: 1, backgroundColor: colors.background },
+  hero: {
+    backgroundColor: colors.accent,
     paddingTop: 60,
-    backgroundColor: colors.background,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  title: {
-    fontSize: 24,
+  heroTopRow: { flexDirection: "row", justifyContent: "flex-end" },
+  signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
+  heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginTop: 4 },
+  heroTitle: {
+    color: colors.accentText,
+    fontSize: 26,
+    fontWeight: "700",
+    marginTop: 6,
+  },
+  heroSubtitle: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    marginTop: 6,
+  },
+  section: { marginTop: 24, paddingHorizontal: 20 },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: "700",
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  subtitle: {
-    color: colors.textSecondary,
-    marginBottom: 32,
-  },
-  menuCard: {
+  requestsCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 12,
   },
-  menuCardTitle: {
+  requestsCardTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.textPrimary,
-    marginBottom: 4,
   },
-  menuCardSubtitle: {
+  requestsCardSubtitle: {
+    fontSize: 12,
     color: colors.textSecondary,
-    fontSize: 13,
+    marginTop: 4,
   },
-  signOutButton: {
-    marginTop: "auto",
-    backgroundColor: colors.accent,
+  badge: {
+    backgroundColor: colors.danger,
     borderRadius: 12,
-    paddingVertical: 12,
+    minWidth: 24,
+    height: 24,
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    marginLeft: 12,
   },
-  signOutText: {
-    color: colors.accentText,
-    fontWeight: "600",
+  badgeText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
+  grid: { flexDirection: "row", gap: 12 },
+  gridCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  gridIcon: { fontSize: 24, marginBottom: 8 },
+  gridCardTitle: { fontSize: 14, fontWeight: "600", color: colors.textPrimary },
+  gridCardSubtitle: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
 });

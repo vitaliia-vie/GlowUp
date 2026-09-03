@@ -1,6 +1,7 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getBookingsForMaster } from "@/services/bookingsApi";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -47,7 +48,7 @@ export default function MasterHome() {
             <Text style={styles.signOut}>Sign out</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.heroGreeting}>Hi, {profile?.displayName} 👋</Text>
+        <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
         <Text style={styles.heroTitle}>Your studio at a glance</Text>
         <Text style={styles.heroSubtitle}>
           Manage requests, services and your schedule
@@ -61,6 +62,13 @@ export default function MasterHome() {
           style={styles.requestsCard}
           onPress={() => router.push("/(master)/bookings")}
         >
+          <View style={styles.requestsIconWrap}>
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.accent}
+            />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.requestsCardTitle}>Client Requests</Text>
             <Text style={styles.requestsCardSubtitle}>
@@ -83,7 +91,12 @@ export default function MasterHome() {
             style={styles.gridCard}
             onPress={() => router.push("/(master)/services")}
           >
-            <Text style={styles.gridIcon}>💅</Text>
+            <Ionicons
+              name="cut-outline"
+              size={24}
+              color={colors.textPrimary}
+              style={styles.gridIcon}
+            />
             <Text style={styles.gridCardTitle}>My Services</Text>
             <Text style={styles.gridCardSubtitle}>
               Add or edit what you offer
@@ -92,9 +105,14 @@ export default function MasterHome() {
 
           <TouchableOpacity
             style={styles.gridCard}
-            onPress={() => router.push("/(master)/availability" as never)}
+            onPress={() => router.push("/(master)/availability")}
           >
-            <Text style={styles.gridIcon}>🗓️</Text>
+            <Ionicons
+              name="calendar-outline"
+              size={24}
+              color={colors.textPrimary}
+              style={styles.gridIcon}
+            />
             <Text style={styles.gridCardTitle}>Availability</Text>
             <Text style={styles.gridCardSubtitle}>Set your working hours</Text>
           </TouchableOpacity>
@@ -108,7 +126,12 @@ export default function MasterHome() {
             style={styles.gridCard}
             onPress={() => router.push("/(client)")}
           >
-            <Text style={styles.gridIcon}>✨</Text>
+            <Ionicons
+              name="sparkles-outline"
+              size={24}
+              color={colors.textPrimary}
+              style={styles.gridIcon}
+            />
             <Text style={styles.gridCardTitle}>Book an Appointment</Text>
             <Text style={styles.gridCardSubtitle}>
               Treat yourself at another master
@@ -119,7 +142,12 @@ export default function MasterHome() {
             style={styles.gridCard}
             onPress={() => router.push("/(client)/bookings")}
           >
-            <Text style={styles.gridIcon}>📋</Text>
+            <Ionicons
+              name="receipt-outline"
+              size={24}
+              color={colors.textPrimary}
+              style={styles.gridIcon}
+            />
             <Text style={styles.gridCardTitle}>My Bookings</Text>
             <Text style={styles.gridCardSubtitle}>
               Appointments you've made
@@ -172,6 +200,15 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 12,
   },
+  requestsIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
   requestsCardTitle: {
     fontSize: 16,
     fontWeight: "700",
@@ -202,7 +239,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  gridIcon: { fontSize: 24, marginBottom: 8 },
+  gridIcon: { marginBottom: 8 },
   gridCardTitle: { fontSize: 14, fontWeight: "600", color: colors.textPrimary },
   gridCardSubtitle: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
 });

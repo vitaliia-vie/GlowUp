@@ -2,6 +2,7 @@ import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMastersByCategory } from "@/services/mastersApi";
 import { SERVICE_CATEGORIES, ServiceCategory, UserProfile } from "@/types";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -60,7 +61,14 @@ export default function ClientHome() {
             <Text style={styles.signOut}>Sign out</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.heroGreeting}>Hi, {profile?.displayName} 👋</Text>
+        <View style={styles.heroGreetingRow}>
+          <Ionicons
+            name="hand-left-outline"
+            size={16}
+            color="rgba(255,255,255,0.8)"
+          />
+          <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
+        </View>
         <Text style={styles.heroTitle}>Find your next glow-up</Text>
         <Text style={styles.heroSubtitle}>
           Book trusted beauty pros near you, in seconds
@@ -70,6 +78,7 @@ export default function ClientHome() {
           style={styles.bookingsButton}
           onPress={() => router.push("/(client)/bookings")}
         >
+          <Ionicons name="receipt-outline" size={16} color={colors.accent} />
           <Text style={styles.bookingsButtonText}>My Bookings</Text>
         </TouchableOpacity>
       </View>
@@ -128,7 +137,13 @@ const styles = StyleSheet.create({
   },
   heroTopRow: { flexDirection: "row", justifyContent: "flex-end" },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
-  heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginTop: 4 },
+  heroGreetingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14 },
   heroTitle: {
     color: colors.accentText,
     fontSize: 26,
@@ -142,10 +157,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   bookingsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 12,
-    alignItems: "center",
   },
   bookingsButtonText: { color: colors.accent, fontWeight: "700", fontSize: 15 },
   emptyText: {

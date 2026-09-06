@@ -1,11 +1,11 @@
 import { auth, db } from "@/services/firebaseConfig";
 import { UserProfile, UserRole } from "@/types";
 import {
-    createUserWithEmailAndPassword,
-    signOut as firebaseSignOut,
-    User as FirebaseUser,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  User as FirebaseUser,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -22,6 +22,7 @@ interface AuthContextValue {
     role: UserRole,
   ) => Promise<void>;
   signOut: () => Promise<void>;
+  setProfile: (profile: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -82,7 +83,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, profile, isLoading, signIn, signUp, signOut }}
+      value={{
+        firebaseUser,
+        profile,
+        isLoading,
+        signIn,
+        signUp,
+        signOut,
+        setProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

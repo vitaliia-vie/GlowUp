@@ -59,6 +59,22 @@ export default function MasterHome() {
         <Text style={styles.sectionTitle}>Manage your studio</Text>
 
         <TouchableOpacity
+          style={styles.gridCard}
+          onPress={() => router.push("/(master)/profile")}
+        >
+          <Ionicons
+            name="person-outline"
+            size={24}
+            color={colors.textPrimary}
+            style={styles.gridIcon}
+          />
+          <Text style={styles.gridCardTitle}>My Profile</Text>
+          <Text style={styles.gridCardSubtitle}>
+            Edit name and specialization
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.requestsCard}
           onPress={() => router.push("/(master)/bookings")}
         >

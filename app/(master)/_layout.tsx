@@ -10,6 +10,10 @@ export default function MasterLayout() {
         name="availability"
         options={{ headerShown: true, headerTitle: "" }}
       />
+      <Stack.Screen
+        name="profile"
+        options={{ headerShown: true, headerTitle: "" }}
+      />
     </Stack>
   );
 }

@@ -121,6 +121,20 @@ export default function MasterHome() {
 
           <TouchableOpacity
             style={styles.gridCard}
+            onPress={() => router.push("/(master)/portfolio")}
+          >
+            <Ionicons
+              name="images-outline"
+              size={24}
+              color={colors.textPrimary}
+              style={styles.gridIcon}
+            />
+            <Text style={styles.gridCardTitle}>Portfolio</Text>
+            <Text style={styles.gridCardSubtitle}>Showcase your work</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.gridCard}
             onPress={() => router.push("/(master)/availability")}
           >
             <Ionicons

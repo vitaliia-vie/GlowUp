@@ -14,6 +14,10 @@ export default function MasterLayout() {
         name="profile"
         options={{ headerShown: true, headerTitle: "" }}
       />
+      <Stack.Screen
+        name="portfolio"
+        options={{ headerShown: true, headerTitle: "My Portfolio" }}
+      />
     </Stack>
   );
 }

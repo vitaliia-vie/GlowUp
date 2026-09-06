@@ -1,18 +1,28 @@
 import { colors } from "@/constants/theme";
 import { getMasterProfile } from "@/services/mastersApi";
+import { getPortfolioByMaster } from "@/services/portfolioApi";
 import { getServicesByMaster } from "@/services/servicesApi";
-import { Service, SERVICE_CATEGORIES, UserProfile } from "@/types";
+import {
+  PortfolioItem,
+  Service,
+  SERVICE_CATEGORIES,
+  UserProfile,
+} from "@/types";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+
+const CARD_WIDTH = (Dimensions.get("window").width - 52) / 2;
 
 export default function MasterProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,18 +30,21 @@ export default function MasterProfileScreen() {
 
   const [master, setMaster] = useState<UserProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     try {
-      const [masterData, servicesData] = await Promise.all([
+      const [masterData, servicesData, portfolioData] = await Promise.all([
         getMasterProfile(id),
         getServicesByMaster(id),
+        getPortfolioByMaster(id),
       ]);
       setMaster(masterData);
       setServices(servicesData);
+      setPortfolio(portfolioData);
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to load master profile.");
     } finally {
@@ -65,24 +78,51 @@ export default function MasterProfileScreen() {
         options={{ title: master.displayName, headerBackTitle: "Back" }}
       />
 
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarInitial}>
-            {master.displayName?.[0]?.toUpperCase() ?? "?"}
-          </Text>
-        </View>
-        <Text style={styles.masterName}>{master.displayName}</Text>
-        <Text style={styles.masterSpecialization}>
-          {master.specialization ?? "Beauty master"}
-        </Text>
-      </View>
-
-      <Text style={styles.sectionTitle}>Services</Text>
-
       <FlatList
         data={services}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        ListHeaderComponent={
+          <>
+            {/* Profile header */}
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitial}>
+                  {master.displayName?.[0]?.toUpperCase() ?? "?"}
+                </Text>
+              </View>
+              <Text style={styles.masterName}>{master.displayName}</Text>
+              <Text style={styles.masterSpecialization}>
+                {master.specialization ?? "Beauty master"}
+              </Text>
+              {master.phone ? (
+                <Text style={styles.masterPhone}>{master.phone}</Text>
+              ) : null}
+            </View>
+
+            {/* Portfolio gallery */}
+            {portfolio.length > 0 && (
+              <View style={styles.portfolioSection}>
+                <Text style={styles.sectionTitle}>Portfolio</Text>
+                <View style={styles.portfolioGrid}>
+                  {portfolio.map((item) => (
+                    <Image
+                      key={item.id}
+                      source={{ uri: item.imageUrl }}
+                      style={styles.portfolioImage}
+                      resizeMode="cover"
+                      onError={(e) =>
+                        console.log("Image error:", e.nativeEvent.error)
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Services</Text>
+          </>
+        }
         ListEmptyComponent={
           <Text style={styles.emptyText}>
             This master hasn't added any services yet.
@@ -122,17 +162,29 @@ const styles = StyleSheet.create({
   },
   profileHeader: { alignItems: "center", paddingVertical: 24 },
   avatarPlaceholder: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.surfaceMuted,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
   },
-  avatarInitial: { fontSize: 28, fontWeight: "700", color: colors.textPrimary },
+  avatarInitial: { fontSize: 30, fontWeight: "700", color: colors.accentText },
   masterName: { fontSize: 20, fontWeight: "700", color: colors.textPrimary },
-  masterSpecialization: { color: colors.textSecondary, marginTop: 2 },
+  masterSpecialization: { color: colors.textSecondary, marginTop: 4 },
+  masterPhone: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
+  portfolioSection: { marginBottom: 16 },
+  portfolioGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  portfolioImage: {
+    width: CARD_WIDTH,
+    height: CARD_WIDTH,
+    borderRadius: 10,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",

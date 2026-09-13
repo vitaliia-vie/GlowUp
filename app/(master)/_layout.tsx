@@ -6,17 +6,14 @@ export default function MasterLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="services" />
       <Stack.Screen name="bookings" />
+      <Stack.Screen name="availability" />
       <Stack.Screen
-        name="availability"
+        name="portfolio"
         options={{ headerShown: true, headerTitle: "" }}
       />
       <Stack.Screen
         name="profile"
         options={{ headerShown: true, headerTitle: "" }}
-      />
-      <Stack.Screen
-        name="portfolio"
-        options={{ headerShown: true, headerTitle: "My Portfolio" }}
       />
     </Stack>
   );

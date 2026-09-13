@@ -1,22 +1,23 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    getBookingsForMaster,
-    updateBookingStatus,
+  getBookingsForMaster,
+  updateBookingStatus,
 } from "@/services/bookingsApi";
 import { getMasterProfile } from "@/services/mastersApi";
 import { getServiceById } from "@/services/servicesApi";
 import { Booking, BookingStatus } from "@/types";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface BookingRow extends Booking {
@@ -40,6 +41,7 @@ const STATUS_COLOR: Record<BookingStatus, string> = {
 
 export default function MasterBookingsScreen() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -159,22 +161,39 @@ export default function MasterBookingsScreen() {
             <Text style={styles.dateTime}>
               {item.date} · {item.timeSlot}
             </Text>
-            {item.status === "pending" && (
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={styles.confirmButton}
-                  onPress={() => respond(item, "confirmed")}
-                >
-                  <Text style={styles.confirmButtonText}>Confirm</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.declineButton}
-                  onPress={() => handleDecline(item)}
-                >
-                  <Text style={styles.declineButtonText}>Decline</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+
+            <View style={styles.actionsRow}>
+              {item.status === "pending" && (
+                <>
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => respond(item, "confirmed")}
+                  >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.declineButton}
+                    onPress={() => handleDecline(item)}
+                  >
+                    <Text style={styles.declineButtonText}>Decline</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity
+                style={styles.chatButton}
+                onPress={() => {
+                  router.push({
+                    pathname: "/(master)/chat/[clientId]" as any,
+                    params: {
+                      clientId: item.clientId,
+                      clientName: item.clientName,
+                    },
+                  });
+                }}
+              >
+                <Text style={styles.chatButtonText}>✉ Chat</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -223,7 +242,12 @@ const styles = StyleSheet.create({
   statusBadge: { fontSize: 12, fontWeight: "700" },
   clientName: { color: colors.textSecondary, marginTop: 2 },
   dateTime: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
-  actionsRow: { flexDirection: "row", gap: 10, marginTop: 10 },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+    flexWrap: "wrap",
+  },
   confirmButton: {
     backgroundColor: colors.accent,
     borderRadius: 8,
@@ -243,4 +267,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   declineButtonText: { color: colors.danger, fontWeight: "600", fontSize: 13 },
+  chatButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+  },
+  chatButtonText: {
+    color: colors.textPrimary,
+    fontWeight: "600",
+    fontSize: 13,
+  },
 });

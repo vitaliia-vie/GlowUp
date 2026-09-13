@@ -5,6 +5,14 @@ export default function ClientLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="bookings" />
+      <Stack.Screen
+        name="master/[id]"
+        options={{ headerShown: true, headerTitle: "" }}
+      />
+      <Stack.Screen
+        name="booking/[masterId]"
+        options={{ headerShown: true, headerTitle: "" }}
+      />
     </Stack>
   );
 }

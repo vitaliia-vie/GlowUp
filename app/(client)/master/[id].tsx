@@ -98,6 +98,22 @@ export default function MasterProfileScreen() {
               {master.phone ? (
                 <Text style={styles.masterPhone}>{master.phone}</Text>
               ) : null}
+
+              {/* Message button */}
+              <TouchableOpacity
+                style={styles.messageButton}
+                onPress={() => {
+                  router.push({
+                    pathname: "/(client)/chat/[masterId]" as any,
+                    params: {
+                      masterId: master.uid,
+                      masterName: master.displayName,
+                    },
+                  });
+                }}
+              >
+                <Text style={styles.messageButtonText}>✉ Message</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Portfolio gallery */}
@@ -174,6 +190,16 @@ const styles = StyleSheet.create({
   masterName: { fontSize: 20, fontWeight: "700", color: colors.textPrimary },
   masterSpecialization: { color: colors.textSecondary, marginTop: 4 },
   masterPhone: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
+  messageButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  messageButtonText: { color: colors.textPrimary, fontWeight: "600" },
   portfolioSection: { marginBottom: 16 },
   portfolioGrid: {
     flexDirection: "row",

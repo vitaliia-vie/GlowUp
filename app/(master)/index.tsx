@@ -1,6 +1,7 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getBookingsForMaster } from "@/services/bookingsApi";
+import { subscribeToNotifications } from "@/services/notificationsApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -19,6 +20,7 @@ export default function MasterHome() {
 
   const [pendingCount, setPendingCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadStats = useCallback(async () => {
     if (!profile) return;
@@ -37,6 +39,17 @@ export default function MasterHome() {
     loadStats();
   }, [loadStats]);
 
+  useEffect(() => {
+    if (!profile) return;
+    const unsubscribe = subscribeToNotifications(
+      profile.uid,
+      (notifications) => {
+        setUnreadCount(notifications.filter((n) => !n.isRead).length);
+      },
+    );
+    return unsubscribe;
+  }, [profile]);
+
   return (
     <ScrollView
       style={styles.container}
@@ -47,7 +60,22 @@ export default function MasterHome() {
           <TouchableOpacity onPress={signOut}>
             <Text style={styles.signOut}>Sign out</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={() => router.push("/(master)/notifications")}
+          >
+            <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
+
         <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
         <Text style={styles.heroTitle}>Your studio at a glance</Text>
         <Text style={styles.heroSubtitle}>
@@ -96,7 +124,7 @@ export default function MasterHome() {
             </Text>
           </View>
           {pendingCount > 0 && (
-            <View style={styles.badge}>
+            <View style={styles.pendingBadge}>
               <Text style={styles.badgeText}>{pendingCount}</Text>
             </View>
           )}
@@ -199,20 +227,34 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
-  heroTopRow: { flexDirection: "row", justifyContent: "flex-end" },
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
+  bellButton: { position: "relative", padding: 4 },
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: colors.danger,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "700" },
   heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginTop: 4 },
   heroTitle: {
-    color: colors.accentText,
+    color: "#FFFFFF",
     fontSize: 26,
     fontWeight: "700",
     marginTop: 6,
   },
-  heroSubtitle: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 14,
-    marginTop: 6,
-  },
+  heroSubtitle: { color: "rgba(255,255,255,0.75)", fontSize: 14, marginTop: 6 },
   section: { marginTop: 24, paddingHorizontal: 20 },
   sectionTitle: {
     fontSize: 18,
@@ -249,7 +291,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
-  badge: {
+  pendingBadge: {
     backgroundColor: colors.danger,
     borderRadius: 12,
     minWidth: 24,
@@ -259,7 +301,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     marginLeft: 12,
   },
-  badgeText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
   grid: { flexDirection: "row", gap: 12 },
   gridCard: {
     flex: 1,
@@ -268,6 +309,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: 12,
   },
   gridIcon: { marginBottom: 8 },
   gridCardTitle: { fontSize: 14, fontWeight: "600", color: colors.textPrimary },

@@ -1,4 +1,5 @@
 import { db } from "@/services/firebaseConfig";
+import { createNotification } from "@/services/notificationsApi";
 import {
     addDoc,
     collection,
@@ -20,7 +21,6 @@ export interface ChatMessage {
   createdAt: number;
 }
 
-// chatId is always "{clientId}_{masterId}"
 export function getChatId(clientId: string, masterId: string): string {
   return `${clientId}_${masterId}`;
 }
@@ -56,6 +56,9 @@ export async function sendMessage(
   senderName: string,
   text: string,
 ): Promise<void> {
+  // chatId формат: {clientId}_{masterId}
+  const [clientId, masterId] = chatId.split("_");
+
   const messagesRef = collection(db, "chats", chatId, "messages");
   await addDoc(messagesRef, {
     senderId,
@@ -64,12 +67,23 @@ export async function sendMessage(
     createdAt: Date.now(),
   });
 
-  // Update last message preview on the chat doc
+  // Обновляем превью последнего сообщения
   await setDoc(
     doc(db, "chats", chatId),
     { lastMessage: text, lastMessageAt: serverTimestamp() },
     { merge: true },
   );
+
+  // Уведомление получателю — не самому отправителю
+  const recipientId = senderId === clientId ? masterId : clientId;
+
+  await createNotification({
+    userId: recipientId,
+    type: "new_message",
+    title: `New message from ${senderName}`,
+    body: text.length > 60 ? text.slice(0, 60) + "..." : text,
+    relatedId: chatId,
+  });
 }
 
 export function subscribeToMessages(

@@ -1,15 +1,19 @@
 import { db } from "@/services/firebaseConfig";
+import { createNotification } from "@/services/notificationsApi";
 import { Booking, BookingStatus } from "@/types";
 import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   updateDoc,
   where,
 } from "firebase/firestore";
+
 const BOOKINGS_COLLECTION = "bookings";
+
 export async function createBooking(
   data: Omit<Booking, "id" | "status" | "createdAt">,
 ): Promise<string> {
@@ -18,9 +22,50 @@ export async function createBooking(
     status: "pending",
     createdAt: Date.now(),
   });
+
+  // Уведомление мастеру — новая запись
+  await createNotification({
+    userId: data.masterId,
+    type: "new_booking",
+    title: "New booking request",
+    body: `A client wants to book ${data.date} at ${data.timeSlot}`,
+    relatedId: docRef.id,
+  });
+
   return docRef.id;
 }
-// Returns all non-cancelled bookings for a given master on a given date
+
+export async function updateBookingStatus(
+  bookingId: string,
+  status: BookingStatus,
+): Promise<void> {
+  const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+  await updateDoc(bookingRef, { status });
+
+  // Уведомление клиенту — статус изменился
+  const snap = await getDoc(bookingRef);
+  if (!snap.exists()) return;
+  const booking = snap.data() as Booking;
+
+  if (status === "confirmed") {
+    await createNotification({
+      userId: booking.clientId,
+      type: "booking_confirmed",
+      title: "Booking confirmed! ✓",
+      body: `Your appointment on ${booking.date} at ${booking.timeSlot} is confirmed`,
+      relatedId: bookingId,
+    });
+  } else if (status === "cancelled") {
+    await createNotification({
+      userId: booking.clientId,
+      type: "booking_cancelled",
+      title: "Booking cancelled",
+      body: `Your appointment on ${booking.date} at ${booking.timeSlot} was cancelled`,
+      relatedId: bookingId,
+    });
+  }
+}
+
 export async function getBookingsForMasterOnDate(
   masterId: string,
   date: string,
@@ -31,6 +76,7 @@ export async function getBookingsForMasterOnDate(
     where("date", "==", date),
   );
   const snapshot = await getDocs(q);
+
   return snapshot.docs
     .map((docSnap) => ({
       id: docSnap.id,
@@ -38,7 +84,7 @@ export async function getBookingsForMasterOnDate(
     }))
     .filter((booking) => booking.status !== "cancelled");
 }
-// Returns every booking a client has made, newest first
+
 export async function getBookingsByClient(
   clientId: string,
 ): Promise<Booking[]> {
@@ -47,14 +93,13 @@ export async function getBookingsByClient(
     where("clientId", "==", clientId),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs
-    .map((docSnap) => ({
-      id: docSnap.id,
-      ...(docSnap.data() as Omit<Booking, "id">),
-    }))
-    .sort((a, b) => b.createdAt - a.createdAt);
+
+  return snapshot.docs.map((docSnap) => ({
+    id: docSnap.id,
+    ...(docSnap.data() as Omit<Booking, "id">),
+  }));
 }
-// Returns every booking request a master has received, newest first
+
 export async function getBookingsForMaster(
   masterId: string,
 ): Promise<Booking[]> {
@@ -63,16 +108,9 @@ export async function getBookingsForMaster(
     where("masterId", "==", masterId),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs
-    .map((docSnap) => ({
-      id: docSnap.id,
-      ...(docSnap.data() as Omit<Booking, "id">),
-    }))
-    .sort((a, b) => b.createdAt - a.createdAt);
-}
-export async function updateBookingStatus(
-  bookingId: string,
-  status: BookingStatus,
-): Promise<void> {
-  await updateDoc(doc(db, BOOKINGS_COLLECTION, bookingId), { status });
+
+  return snapshot.docs.map((docSnap) => ({
+    id: docSnap.id,
+    ...(docSnap.data() as Omit<Booking, "id">),
+  }));
 }

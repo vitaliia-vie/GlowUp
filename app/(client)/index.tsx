@@ -1,6 +1,7 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMastersByCategory } from "@/services/mastersApi";
+import { subscribeToNotifications } from "@/services/notificationsApi";
 import { SERVICE_CATEGORIES, ServiceCategory, UserProfile } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -27,6 +28,7 @@ export default function ClientHome() {
 
   const [sections, setSections] = useState<CategorySection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadSections = useCallback(async () => {
     setIsLoading(true);
@@ -50,6 +52,17 @@ export default function ClientHome() {
     loadSections();
   }, [loadSections]);
 
+  useEffect(() => {
+    if (!profile) return;
+    const unsubscribe = subscribeToNotifications(
+      profile.uid,
+      (notifications) => {
+        setUnreadCount(notifications.filter((n) => !n.isRead).length);
+      },
+    );
+    return unsubscribe;
+  }, [profile]);
+
   return (
     <ScrollView
       style={styles.container}
@@ -60,7 +73,22 @@ export default function ClientHome() {
           <TouchableOpacity onPress={signOut}>
             <Text style={styles.signOut}>Sign out</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={() => router.push("/(client)/notifications")}
+          >
+            <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
+
         <View style={styles.heroGreetingRow}>
           <Ionicons
             name="hand-left-outline"
@@ -135,8 +163,26 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
-  heroTopRow: { flexDirection: "row", justifyContent: "flex-end" },
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
+  bellButton: { position: "relative", padding: 4 },
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: colors.danger,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "700" },
   heroGreetingRow: {
     flexDirection: "row",
     alignItems: "center",

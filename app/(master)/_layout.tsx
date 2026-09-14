@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 export default function MasterLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="index" />
       <Stack.Screen name="services" />
       <Stack.Screen name="bookings" />

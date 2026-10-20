@@ -1,3 +1,4 @@
+import Avatar from '@/components/Avatar';
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMastersByCategory } from "@/services/mastersApi";
@@ -132,11 +133,7 @@ export default function ClientHome() {
                   style={styles.masterCard}
                   onPress={() => router.push(`/(client)/master/${master.uid}`)}
                 >
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarInitial}>
-                      {master.displayName?.[0]?.toUpperCase() ?? "?"}
-                    </Text>
-                  </View>
+                  <Avatar displayName={master.displayName} size={56} />
                   <Text style={styles.masterName} numberOfLines={1}>
                     {master.displayName}
                   </Text>

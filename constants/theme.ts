@@ -12,3 +12,7 @@ export const colors = {
 
   danger: "#B3554A",
 };
+export function getAvatarUrl(displayName: string): string {
+  const seed = encodeURIComponent(displayName.trim() || 'user');
+  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+}

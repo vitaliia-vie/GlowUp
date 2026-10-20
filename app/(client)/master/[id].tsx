@@ -1,3 +1,4 @@
+import Avatar from '@/components/Avatar';
 import { colors } from "@/constants/theme";
 import { getMasterProfile } from "@/services/mastersApi";
 import { getPortfolioByMaster } from "@/services/portfolioApi";
@@ -86,11 +87,7 @@ export default function MasterProfileScreen() {
           <>
             {/* Profile header */}
             <View style={styles.profileHeader}>
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {master.displayName?.[0]?.toUpperCase() ?? "?"}
-                </Text>
-              </View>
+              <Avatar displayName={master.displayName} size={80} />
               <Text style={styles.masterName}>{master.displayName}</Text>
               <Text style={styles.masterSpecialization}>
                 {master.specialization ?? "Beauty master"}

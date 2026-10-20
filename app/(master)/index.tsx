@@ -1,3 +1,4 @@
+import Avatar from "@/components/Avatar";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getBookingsForMaster } from "@/services/bookingsApi";
@@ -74,6 +75,10 @@ export default function MasterHome() {
               </View>
             )}
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.heroAvatarRow}>
+          <Avatar displayName={profile?.displayName ?? ""} size={52} />
         </View>
 
         <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
@@ -232,6 +237,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  heroAvatarRow: { alignItems: "flex-start", marginTop: 16, marginBottom: 4 },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
   bellButton: { position: "relative", padding: 4 },
   badge: {

@@ -1,16 +1,17 @@
+import Avatar from '@/components/Avatar';
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile } from "@/services/profileApi";
 import { Stack } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function MasterProfileScreen() {
@@ -65,12 +66,7 @@ export default function MasterProfileScreen() {
       />
 
       <View style={styles.avatarSection}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitial}>
-            {displayName?.[0]?.toUpperCase() ?? "?"}
-          </Text>
-        </View>
-        <Text style={styles.avatarHint}>Profile photo coming soon</Text>
+        <Avatar displayName={displayName} size={80} />
       </View>
 
       <View style={styles.form}>

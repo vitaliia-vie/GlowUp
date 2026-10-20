@@ -1,24 +1,27 @@
+import InstagramCard from "@/components/InstagramCard";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
+import { pickPortfolioImage } from "@/services/imageService";
 import {
-    addPortfolioPhoto,
-    deletePortfolioPhoto,
-    getPortfolioByMaster,
+  addPortfolioPhoto,
+  deletePortfolioPhoto,
+  getPortfolioByMaster,
 } from "@/services/portfolioApi";
 import { PortfolioItem } from "@/types";
-import { Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const COLUMN_COUNT = 2;
@@ -27,10 +30,12 @@ const CARD_WIDTH = (Dimensions.get("window").width - 40 - GAP) / COLUMN_COUNT;
 
 export default function PortfolioScreen() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [photos, setPhotos] = useState<PortfolioItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [imageUrl, setImageUrl] = useState("");
+  const [pickedImage, setPickedImage] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
+  const [isPicking, setIsPicking] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   const loadPhotos = useCallback(async () => {
@@ -50,14 +55,22 @@ export default function PortfolioScreen() {
     loadPhotos();
   }, [loadPhotos]);
 
+  const handlePick = async () => {
+    setIsPicking(true);
+    try {
+      const image = await pickPortfolioImage();
+      if (image) setPickedImage(image);
+    } catch (error: any) {
+      Alert.alert("Error", error.message ?? "Failed to open your photos.");
+    } finally {
+      setIsPicking(false);
+    }
+  };
+
   const handleAdd = async () => {
     if (!profile) return;
-    if (!imageUrl.trim()) {
-      Alert.alert("Missing URL", "Please paste an image URL.");
-      return;
-    }
-    if (!imageUrl.startsWith("http")) {
-      Alert.alert("Invalid URL", "URL must start with http:// or https://");
+    if (!pickedImage) {
+      Alert.alert("No photo", "Please choose a photo first.");
       return;
     }
 
@@ -65,11 +78,11 @@ export default function PortfolioScreen() {
     try {
       const newPhoto = await addPortfolioPhoto(
         profile.uid,
-        imageUrl.trim(),
+        pickedImage,
         caption.trim(),
       );
       setPhotos((prev) => [newPhoto, ...prev]);
-      setImageUrl("");
+      setPickedImage(null);
       setCaption("");
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to add photo.");
@@ -96,6 +109,76 @@ export default function PortfolioScreen() {
     ]);
   };
 
+  const header = (
+    <View style={{ gap: 12 }}>
+      <View style={styles.form}>
+        <TouchableOpacity
+          style={styles.pickArea}
+          onPress={handlePick}
+          disabled={isPicking || isAdding}
+          activeOpacity={0.8}
+        >
+          {pickedImage ? (
+            <Image
+              source={{ uri: pickedImage }}
+              style={styles.preview}
+              resizeMode="cover"
+            />
+          ) : isPicking ? (
+            <ActivityIndicator color={colors.accent} />
+          ) : (
+            <>
+              <Ionicons
+                name="image-outline"
+                size={30}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.pickText}>Choose photo from your phone</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        {pickedImage ? (
+          <Text style={styles.pickHint}>Tap the photo to choose another</Text>
+        ) : null}
+
+        <TextInput
+          style={styles.input}
+          placeholder="Caption (optional)"
+          placeholderTextColor={colors.textSecondary}
+          value={caption}
+          onChangeText={setCaption}
+        />
+        <TouchableOpacity
+          style={[styles.addButton, !pickedImage && styles.addButtonDisabled]}
+          onPress={handleAdd}
+          disabled={!pickedImage || isAdding}
+        >
+          <Text style={styles.addButtonText}>
+            {isAdding ? "Adding..." : "+ Add photo"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {profile?.instagram ? (
+        <InstagramCard handle={profile.instagram} />
+      ) : (
+        <TouchableOpacity
+          style={styles.instagramHint}
+          onPress={() => router.push("/(master)/profile")}
+        >
+          <Ionicons
+            name="logo-instagram"
+            size={20}
+            color={colors.textSecondary}
+          />
+          <Text style={styles.instagramHintText}>
+            Add your Instagram in My Profile to show it here
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -106,79 +189,54 @@ export default function PortfolioScreen() {
         }}
       />
 
-      <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Paste image URL (https://...)"
-          placeholderTextColor={colors.textSecondary}
-          value={imageUrl}
-          onChangeText={setImageUrl}
-          autoCapitalize="none"
-          keyboardType="url"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Caption (optional)"
-          placeholderTextColor={colors.textSecondary}
-          value={caption}
-          onChangeText={setCaption}
-        />
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAdd}
-          disabled={isAdding}
-        >
-          <Text style={styles.addButtonText}>
-            {isAdding ? "Adding..." : "+ Add photo"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />
-      ) : photos.length === 0 ? (
-        <Text style={styles.emptyText}>
-          No photos yet — add your first work above.
-        </Text>
-      ) : (
-        <FlatList
-          data={photos}
-          keyExtractor={(item) => item.id}
-          numColumns={COLUMN_COUNT}
-          columnWrapperStyle={{ gap: GAP }}
-          contentContainerStyle={{
-            gap: GAP,
-            paddingTop: 12,
-            paddingBottom: 40,
-          }}
-          renderItem={({ item }) => (
+      <FlatList
+        data={photos}
+        keyExtractor={(item) => item.id}
+        numColumns={COLUMN_COUNT}
+        columnWrapperStyle={{ gap: GAP }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          gap: GAP,
+          paddingBottom: 40,
+        }}
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          isLoading ? (
+            <ActivityIndicator
+              style={{ marginTop: 24 }}
+              color={colors.accent}
+            />
+          ) : (
+            <Text style={styles.emptyText}>
+              No photos yet — add your first work above.
+            </Text>
+          )
+        }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.photoCard}
+            onLongPress={() => handleDelete(item)}
+          >
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.photo}
+              resizeMode="cover"
+              onError={(e) => console.log("Image error:", e.nativeEvent.error)}
+            />
+            {item.caption ? (
+              <Text style={styles.caption} numberOfLines={1}>
+                {item.caption}
+              </Text>
+            ) : null}
             <TouchableOpacity
-              style={styles.photoCard}
-              onLongPress={() => handleDelete(item)}
+              style={styles.deleteButton}
+              onPress={() => handleDelete(item)}
             >
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={styles.photo}
-                resizeMode="cover"
-                onError={(e) =>
-                  console.log("Image error:", e.nativeEvent.error)
-                }
-              />
-              {item.caption ? (
-                <Text style={styles.caption} numberOfLines={1}>
-                  {item.caption}
-                </Text>
-              ) : null}
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDelete(item)}
-              >
-                <Text style={styles.deleteButtonText}>✕</Text>
-              </TouchableOpacity>
+              <Text style={styles.deleteButtonText}>✕</Text>
             </TouchableOpacity>
-          )}
-        />
-      )}
+          </TouchableOpacity>
+        )}
+      />
     </View>
   );
 }
@@ -196,7 +254,27 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 4,
+  },
+  pickArea: {
+    height: 180,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    backgroundColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+    gap: 8,
+  },
+  preview: { width: "100%", height: "100%" },
+  pickText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  pickHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 8,
   },
   input: {
     backgroundColor: colors.background,
@@ -214,11 +292,24 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
   },
+  addButtonDisabled: { backgroundColor: colors.surfaceMuted },
   addButtonText: { color: colors.accentText, fontWeight: "600" },
+  instagramHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+  },
+  instagramHintText: { flex: 1, color: colors.textSecondary, fontSize: 13 },
   emptyText: {
     textAlign: "center",
     color: colors.textSecondary,
-    marginTop: 32,
+    marginTop: 20,
   },
   photoCard: {
     width: CARD_WIDTH,

@@ -9,6 +9,7 @@ export interface UserProfile {
   phone?: string;
   // Master-only fields
   specialization?: string;
+  instagram?: string; // username only, e.g. "anna.nails"
   createdAt: number;
 }
 

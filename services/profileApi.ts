@@ -4,7 +4,9 @@ import { doc, updateDoc } from "firebase/firestore";
 
 export async function updateProfile(
   uid: string,
-  data: Partial<Pick<UserProfile, "displayName" | "specialization" | "phone">>,
+  data: Partial<
+    Pick<UserProfile, "displayName" | "specialization" | "phone" | "instagram">
+  >,
 ): Promise<void> {
   await updateDoc(doc(db, "users", uid), data);
 }

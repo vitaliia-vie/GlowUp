@@ -1,4 +1,5 @@
-import Avatar from '@/components/Avatar';
+import Avatar from "@/components/Avatar";
+import InstagramCard from "@/components/InstagramCard";
 import { colors } from "@/constants/theme";
 import { getMasterProfile } from "@/services/mastersApi";
 import { getPortfolioByMaster } from "@/services/portfolioApi";
@@ -113,23 +114,32 @@ export default function MasterProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Portfolio gallery */}
-            {portfolio.length > 0 && (
+            {/* Portfolio: Instagram card + photo gallery */}
+            {(portfolio.length > 0 || master.instagram) && (
               <View style={styles.portfolioSection}>
                 <Text style={styles.sectionTitle}>Portfolio</Text>
-                <View style={styles.portfolioGrid}>
-                  {portfolio.map((item) => (
-                    <Image
-                      key={item.id}
-                      source={{ uri: item.imageUrl }}
-                      style={styles.portfolioImage}
-                      resizeMode="cover"
-                      onError={(e) =>
-                        console.log("Image error:", e.nativeEvent.error)
-                      }
-                    />
-                  ))}
-                </View>
+
+                {master.instagram ? (
+                  <View style={styles.instagramWrap}>
+                    <InstagramCard handle={master.instagram} />
+                  </View>
+                ) : null}
+
+                {portfolio.length > 0 && (
+                  <View style={styles.portfolioGrid}>
+                    {portfolio.map((item) => (
+                      <Image
+                        key={item.id}
+                        source={{ uri: item.imageUrl }}
+                        style={styles.portfolioImage}
+                        resizeMode="cover"
+                        onError={(e) =>
+                          console.log("Image error:", e.nativeEvent.error)
+                        }
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
             )}
 
@@ -198,6 +208,7 @@ const styles = StyleSheet.create({
   },
   messageButtonText: { color: colors.textPrimary, fontWeight: "600" },
   portfolioSection: { marginBottom: 16 },
+  instagramWrap: { marginBottom: 12 },
   portfolioGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

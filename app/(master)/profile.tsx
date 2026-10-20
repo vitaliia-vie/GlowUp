@@ -1,4 +1,8 @@
-import Avatar from '@/components/Avatar';
+import Avatar from "@/components/Avatar";
+import {
+  extractInstagramHandle,
+  isValidInstagramHandle,
+} from "@/components/InstagramCard";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile } from "@/services/profileApi";
@@ -22,6 +26,7 @@ export default function MasterProfileScreen() {
     profile?.specialization ?? "",
   );
   const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [instagram, setInstagram] = useState(profile?.instagram ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -31,19 +36,31 @@ export default function MasterProfileScreen() {
       return;
     }
 
+    const instagramHandle = extractInstagramHandle(instagram);
+    if (instagramHandle && !isValidInstagramHandle(instagramHandle)) {
+      Alert.alert(
+        "Invalid Instagram",
+        "Use a username like anna.nails or paste your profile link.",
+      );
+      return;
+    }
+
     setIsSaving(true);
     try {
       await updateProfile(profile.uid, {
         displayName: displayName.trim(),
         specialization: specialization.trim(),
         phone: phone.trim(),
+        instagram: instagramHandle,
       });
       setProfile({
         ...profile,
         displayName: displayName.trim(),
         specialization: specialization.trim(),
         phone: phone.trim(),
+        instagram: instagramHandle,
       });
+      setInstagram(instagramHandle);
       Alert.alert("Saved", "Your profile has been updated.");
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to save profile.");
@@ -56,6 +73,7 @@ export default function MasterProfileScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen
         options={{
@@ -96,6 +114,17 @@ export default function MasterProfileScreen() {
           placeholder="+47 000 00 000"
           placeholderTextColor={colors.textSecondary}
           keyboardType="phone-pad"
+        />
+
+        <Text style={styles.label}>Instagram</Text>
+        <TextInput
+          style={styles.input}
+          value={instagram}
+          onChangeText={setInstagram}
+          placeholder="@username or profile link"
+          placeholderTextColor={colors.textSecondary}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
       </View>
 

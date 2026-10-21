@@ -1,16 +1,16 @@
 import { db } from "@/services/firebaseConfig";
 import { createNotification } from "@/services/notificationsApi";
 import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    onSnapshot,
-    orderBy,
-    query,
-    serverTimestamp,
-    setDoc,
-    Unsubscribe,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Unsubscribe,
 } from "firebase/firestore";
 
 export interface ChatMessage {
@@ -95,11 +95,21 @@ export function subscribeToMessages(
     orderBy("createdAt", "asc"),
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const messages: ChatMessage[] = snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...(docSnap.data() as Omit<ChatMessage, "id">),
-    }));
-    onMessages(messages);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const messages: ChatMessage[] = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<ChatMessage, "id">),
+      }));
+      onMessages(messages);
+    },
+    (error) => {
+      // Expected for a moment when the user signs out or switches account
+      if (error.code !== "permission-denied") {
+        console.warn("Messages listener error:", error.message);
+      }
+      onMessages([]);
+    },
+  );
 }

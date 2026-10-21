@@ -1,28 +1,25 @@
+import BackButton from "@/components/BackButton";
+import NotificationIcon from "@/components/NotificationIcon";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    AppNotification,
-    markAllAsRead,
-    markAsRead,
-    subscribeToNotifications,
+  AppNotification,
+  markAllAsRead,
+  markAsRead,
+  subscribeToNotifications,
 } from "@/services/notificationsApi";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-
-const TYPE_ICON: Record<AppNotification["type"], string> = {
-  new_booking: "📅",
-  booking_confirmed: "✅",
-  booking_cancelled: "❌",
-  new_message: "✉️",
-};
 
 export default function MasterNotificationsScreen() {
   const { profile } = useAuth();
@@ -57,28 +54,47 @@ export default function MasterNotificationsScreen() {
 
   const handleMarkAllRead = async () => {
     if (!profile) return;
-    await markAllAsRead(profile.uid);
+    try {
+      await markAllAsRead(profile.uid);
+    } catch (error: any) {
+      Alert.alert("Error", error.message ?? "Failed to mark as read.");
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={styles.container}>
+        <BackButton fallbackHref="/(master)" />
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <BackButton fallbackHref="/(master)" />
+
       <View style={styles.headerRow}>
         <Text style={styles.header}>Notifications</Text>
-        {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllRead}>
-            <Text style={styles.markAllRead}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[
+            styles.markAllButton,
+            unreadCount === 0 && styles.markAllButtonDisabled,
+          ]}
+          onPress={handleMarkAllRead}
+          disabled={unreadCount === 0}
+        >
+          <Ionicons
+            name="checkmark-done-outline"
+            size={16}
+            color={colors.textPrimary}
+          />
+          <Text style={styles.markAllText}>Mark all read</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -93,7 +109,7 @@ export default function MasterNotificationsScreen() {
             style={[styles.card, !item.isRead && styles.cardUnread]}
             onPress={() => handleTap(item)}
           >
-            <Text style={styles.icon}>{TYPE_ICON[item.type]}</Text>
+            <NotificationIcon type={item.type} />
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.body}>{item.body}</Text>
@@ -123,7 +139,6 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -134,7 +149,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   header: { fontSize: 24, fontWeight: "700", color: colors.textPrimary },
-  markAllRead: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  markAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  markAllButtonDisabled: { opacity: 0.45 },
+  markAllText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
   emptyText: {
     textAlign: "center",
     color: colors.textSecondary,
@@ -152,7 +183,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardUnread: { borderColor: colors.accent },
-  icon: { fontSize: 24, marginTop: 2 },
   title: { fontSize: 15, fontWeight: "700", color: colors.textPrimary },
   body: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
   time: { color: colors.textSecondary, marginTop: 4, fontSize: 11 },

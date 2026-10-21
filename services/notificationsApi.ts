@@ -1,16 +1,16 @@
 import { db } from "@/services/firebaseConfig";
 import {
-    addDoc,
-    collection,
-    doc,
-    getDocs,
-    onSnapshot,
-    orderBy,
-    query,
-    Unsubscribe,
-    updateDoc,
-    where,
-    writeBatch,
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  Unsubscribe,
+  updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 
 export type NotificationType =
@@ -52,13 +52,24 @@ export function subscribeToNotifications(
     orderBy("createdAt", "desc"),
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const items: AppNotification[] = snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...(docSnap.data() as Omit<AppNotification, "id">),
-    }));
-    onData(items);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items: AppNotification[] = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<AppNotification, "id">),
+      }));
+      onData(items);
+    },
+    (error) => {
+      // permission-denied is expected for a moment when the user signs out or
+      // switches account while this listener is still attached.
+      if (error.code !== "permission-denied") {
+        console.warn("Notifications listener error:", error.message);
+      }
+      onData([]);
+    },
+  );
 }
 
 export async function markAsRead(notificationId: string): Promise<void> {

@@ -6,7 +6,8 @@ import {
   getBookingsForMasterOnDate,
 } from "@/services/bookingsApi";
 import { getMasterProfile } from "@/services/mastersApi";
-import { Availability, UserProfile } from "@/types";
+import { getServicesByMaster } from "@/services/servicesApi";
+import { Availability, SERVICE_CATEGORIES, Service, UserProfile } from "@/types";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -25,14 +26,18 @@ function todayIso(): string {
 }
 
 export default function BookingScreen() {
-  const { masterId, serviceId } = useLocalSearchParams<{
+  const { masterId, serviceId: preselectedServiceId } = useLocalSearchParams<{
     masterId: string;
-    serviceId: string;
+    serviceId?: string;
   }>();
   const { profile } = useAuth();
   const router = useRouter();
   const [master, setMaster] = useState<UserProfile | null>(null);
   const [availability, setAvailability] = useState<Availability | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
+    preselectedServiceId ?? null,
+  );
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso());
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
@@ -40,17 +45,24 @@ export default function BookingScreen() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
+  const selectedService = useMemo(
+    () => services.find((s) => s.id === selectedServiceId) ?? null,
+    [services, selectedServiceId],
+  );
+
   useEffect(() => {
     if (!masterId) return;
     (async () => {
       setIsLoadingInitial(true);
       try {
-        const [masterData, availabilityData] = await Promise.all([
+        const [masterData, availabilityData, servicesData] = await Promise.all([
           getMasterProfile(masterId),
           getAvailability(masterId),
+          getServicesByMaster(masterId),
         ]);
         setMaster(masterData);
         setAvailability(availabilityData);
+        setServices(servicesData);
       } catch (error: any) {
         Alert.alert("Error", error.message ?? "Failed to load booking info.");
       } finally {
@@ -105,11 +117,12 @@ export default function BookingScreen() {
       Alert.alert("Not signed in", "Please sign in again and retry.");
       return;
     }
-    if (!masterId || !serviceId) {
-      Alert.alert(
-        "Missing booking details",
-        "This screen was opened without a service selected. Please go back and pick a service again.",
-      );
+    if (!masterId) {
+      Alert.alert("Missing master", "Please go back and open the master again.");
+      return;
+    }
+    if (!selectedService) {
+      Alert.alert("Select a service", "Please choose a service first.");
       return;
     }
     if (!selectedSlot) {
@@ -122,7 +135,7 @@ export default function BookingScreen() {
       await createBooking({
         clientId: profile.uid,
         masterId,
-        serviceId,
+        serviceId: selectedService.id,
         date: selectedDate,
         timeSlot: selectedSlot,
       });
@@ -136,6 +149,16 @@ export default function BookingScreen() {
       setIsConfirming(false);
     }
   };
+
+  const renderServiceInfo = (service: Service) => (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.serviceTitle}>{service.title}</Text>
+      <Text style={styles.serviceMeta}>
+        {SERVICE_CATEGORIES.find((c) => c.id === service.category)?.label} ·{" "}
+        {service.durationMinutes} min
+      </Text>
+    </View>
+  );
 
   if (isLoadingInitial) {
     return (
@@ -156,70 +179,118 @@ export default function BookingScreen() {
           headerBackTitle: "Back",
         }}
       />
-      <Calendar
-        current={selectedDate}
-        minDate={todayIso()}
-        onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
-        markedDates={{
-          [selectedDate]: { selected: true, selectedColor: colors.accent },
-        }}
-        theme={{
-          backgroundColor: colors.surface,
-          calendarBackground: colors.surface,
-          textSectionTitleColor: colors.textSecondary,
-          selectedDayBackgroundColor: colors.accent,
-          selectedDayTextColor: colors.accentText,
-          todayTextColor: colors.accent,
-          dayTextColor: colors.textPrimary,
-          arrowColor: colors.textPrimary,
-          monthTextColor: colors.textPrimary,
-        }}
-        style={styles.calendar}
-      />
-      <Text style={styles.sectionTitle}>Available times</Text>
-      {isLoadingSlots ? (
-        <ActivityIndicator style={{ marginTop: 12 }} color={colors.accent} />
-      ) : availableSlots.length === 0 ? (
-        <Text style={styles.emptyText}>No available slots on this day.</Text>
-      ) : (
-        <View style={styles.slotsGrid}>
-          {availableSlots.map((slot) => (
-            <TouchableOpacity
-              key={slot}
-              style={[
-                styles.slotChip,
-                selectedSlot === slot && styles.slotChipActive,
-              ]}
-              onPress={() => setSelectedSlot(slot)}
-            >
-              <Text
-                style={[
-                  styles.slotChipText,
-                  selectedSlot === slot && styles.slotChipTextActive,
-                ]}
-              >
-                {slot}
-              </Text>
-            </TouchableOpacity>
-          ))}
+
+      {/* Step 1: choose a service */}
+      <Text style={styles.sectionTitle}>
+        {selectedService ? "Your service" : "Choose a service"}
+      </Text>
+
+      {selectedService ? (
+        <View style={[styles.serviceCard, styles.serviceCardActive]}>
+          {renderServiceInfo(selectedService)}
+          <Text style={styles.servicePrice}>${selectedService.price}</Text>
+          <TouchableOpacity onPress={() => setSelectedServiceId(null)}>
+            <Text style={styles.changeText}>Change</Text>
+          </TouchableOpacity>
         </View>
-      )}
-      <TouchableOpacity
-        style={[
-          styles.confirmButton,
-          !selectedSlot && styles.confirmButtonDisabled,
-        ]}
-        onPress={handleConfirm}
-        disabled={!selectedSlot || isConfirming}
-      >
-        <Text style={styles.confirmButtonText}>
-          {isConfirming
-            ? "Booking..."
-            : selectedSlot
-              ? `Confirm ${selectedSlot}`
-              : "Select a time"}
+      ) : services.length === 0 ? (
+        <Text style={styles.emptyText}>
+          This master hasn't added any services yet.
         </Text>
-      </TouchableOpacity>
+      ) : (
+        services.map((service) => (
+          <TouchableOpacity
+            key={service.id}
+            style={styles.serviceCard}
+            onPress={() => setSelectedServiceId(service.id)}
+          >
+            {renderServiceInfo(service)}
+            <Text style={styles.servicePrice}>${service.price}</Text>
+          </TouchableOpacity>
+        ))
+      )}
+
+      {/* Step 2: date, time and confirmation appear once a service is chosen */}
+      {selectedService && (
+        <>
+          <Calendar
+            current={selectedDate}
+            minDate={todayIso()}
+            onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+            markedDates={{
+              [selectedDate]: { selected: true, selectedColor: colors.accent },
+            }}
+            theme={{
+              backgroundColor: colors.surface,
+              calendarBackground: colors.surface,
+              textSectionTitleColor: colors.textSecondary,
+              selectedDayBackgroundColor: colors.accent,
+              selectedDayTextColor: colors.accentText,
+              todayTextColor: colors.accent,
+              dayTextColor: colors.textPrimary,
+              arrowColor: colors.textPrimary,
+              monthTextColor: colors.textPrimary,
+            }}
+            style={styles.calendar}
+          />
+
+          <Text style={styles.sectionTitle}>Available times</Text>
+          {isLoadingSlots ? (
+            <ActivityIndicator
+              style={{ marginTop: 4 }}
+              color={colors.accent}
+            />
+          ) : availableSlots.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No available slots on this day.
+            </Text>
+          ) : (
+            <View style={styles.slotsGrid}>
+              {availableSlots.map((slot) => (
+                <TouchableOpacity
+                  key={slot}
+                  style={[
+                    styles.slotChip,
+                    selectedSlot === slot && styles.slotChipActive,
+                  ]}
+                  onPress={() => setSelectedSlot(slot)}
+                >
+                  <Text
+                    style={[
+                      styles.slotChipText,
+                      selectedSlot === slot && styles.slotChipTextActive,
+                    ]}
+                  >
+                    {slot}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.confirmButton,
+              !selectedSlot && styles.confirmButtonDisabled,
+            ]}
+            onPress={handleConfirm}
+            disabled={!selectedSlot || isConfirming}
+          >
+            <Text
+              style={[
+                styles.confirmButtonText,
+                !selectedSlot && styles.confirmButtonTextDisabled,
+              ]}
+            >
+              {isConfirming
+                ? "Booking..."
+                : selectedSlot
+                  ? `Confirm ${selectedSlot}`
+                  : "Select a time"}
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -232,31 +303,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  calendar: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    margin: 20,
-    marginBottom: 8,
-    overflow: "hidden",
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: colors.textPrimary,
     marginHorizontal: 20,
-    marginTop: 12,
+    marginTop: 20,
+    marginBottom: 12,
   },
   emptyText: {
     color: colors.textSecondary,
     marginHorizontal: 20,
-    marginTop: 12,
+  },
+  serviceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  serviceCardActive: { borderColor: colors.accent },
+  serviceTitle: { fontSize: 16, fontWeight: "600", color: colors.textPrimary },
+  serviceMeta: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
+  servicePrice: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
+  changeText: {
+    color: colors.textSecondary,
+    fontWeight: "600",
+    fontSize: 13,
+    marginLeft: 12,
+  },
+  calendar: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    marginHorizontal: 20,
+    marginTop: 8,
+    overflow: "hidden",
   },
   slotsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     paddingHorizontal: 20,
-    marginTop: 12,
     gap: 10,
   },
   slotChip: {
@@ -287,4 +378,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  confirmButtonTextDisabled: { color: colors.textSecondary },
 });

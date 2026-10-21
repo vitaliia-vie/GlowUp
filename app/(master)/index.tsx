@@ -79,6 +79,17 @@ export default function MasterHome() {
 
         <View style={styles.heroAvatarRow}>
           <Avatar displayName={profile?.displayName ?? ""} size={52} />
+
+          {/* Stripped out automatically in production builds — see __DEV__ */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.devButton}
+              onPress={() => router.push("/(master)/dev-masters" as any)}
+            >
+              <Text style={styles.devLabel}>DEV ONLY</Text>
+              <Text style={styles.devButtonText}>Test masters</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
@@ -237,7 +248,35 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  heroAvatarRow: { alignItems: "flex-start", marginTop: 16, marginBottom: 4 },
+  heroAvatarRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  devButton: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+  },
+  devLabel: {
+    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  devButtonText: {
+    color: colors.textPrimary,
+    fontWeight: "600",
+    fontSize: 13,
+    marginTop: 1,
+  },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
   bellButton: { position: "relative", padding: 4 },
   badge: {

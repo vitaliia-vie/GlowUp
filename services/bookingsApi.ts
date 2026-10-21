@@ -23,7 +23,7 @@ export async function createBooking(
     createdAt: Date.now(),
   });
 
-  // Уведомление мастеру — новая запись
+ 
   await createNotification({
     userId: data.masterId,
     type: "new_booking",
@@ -42,7 +42,6 @@ export async function updateBookingStatus(
   const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
   await updateDoc(bookingRef, { status });
 
-  // Уведомление клиенту — статус изменился
   const snap = await getDoc(bookingRef);
   if (!snap.exists()) return;
   const booking = snap.data() as Booking;

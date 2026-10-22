@@ -17,17 +17,25 @@ export type ServiceCategory =
   | "nails"
   | "lashes"
   | "hair"
+  | "barber"
   | "brows"
+  | "makeup"
   | "skincare"
-  | "makeup";
+  | "hairRemoval"
+  | "massage"
+  | "body";
 
 export const SERVICE_CATEGORIES: { id: ServiceCategory; label: string }[] = [
   { id: "nails", label: "Nails" },
   { id: "lashes", label: "Lashes" },
   { id: "hair", label: "Hair" },
+  { id: "barber", label: "Barber" },
   { id: "brows", label: "Brows" },
-  { id: "skincare", label: "Skincare" },
   { id: "makeup", label: "Makeup" },
+  { id: "skincare", label: "Skincare" },
+  { id: "hairRemoval", label: "Hair removal" },
+  { id: "massage", label: "Massage" },
+  { id: "body", label: "Body & spa" },
 ];
 
 export interface Service {

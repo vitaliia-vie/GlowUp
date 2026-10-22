@@ -3,9 +3,15 @@ import {
   extractInstagramHandle,
   isValidInstagramHandle,
 } from "@/components/InstagramCard";
+import {
+  findSpecializationCategory,
+  SPECIALIZATIONS,
+} from "@/constants/catalog";
+import { CATEGORY_COLORS } from "@/constants/categoryColors";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile } from "@/services/profileApi";
+import { SERVICE_CATEGORIES, ServiceCategory } from "@/types";
 import { Stack } from "expo-router";
 import { useState } from "react";
 import {
@@ -24,6 +30,9 @@ export default function MasterProfileScreen() {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? "");
   const [specialization, setSpecialization] = useState(
     profile?.specialization ?? "",
+  );
+  const [specCategory, setSpecCategory] = useState<ServiceCategory | null>(
+    findSpecializationCategory(profile?.specialization),
   );
   const [phone, setPhone] = useState(profile?.phone ?? "");
   const [instagram, setInstagram] = useState(profile?.instagram ?? "");
@@ -69,6 +78,8 @@ export default function MasterProfileScreen() {
     }
   };
 
+  const currentSpec = specialization.trim().toLowerCase();
+
   return (
     <ScrollView
       style={styles.container}
@@ -102,9 +113,68 @@ export default function MasterProfileScreen() {
           style={styles.input}
           value={specialization}
           onChangeText={setSpecialization}
-          placeholder="e.g. Nail artist, Lash technician"
+          placeholder="Pick below or write your own"
           placeholderTextColor={colors.textSecondary}
         />
+
+        <Text style={styles.hint}>Your field</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          {SERVICE_CATEGORIES.map((cat) => {
+            const active = specCategory === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.categoryChip,
+                  { backgroundColor: CATEGORY_COLORS[cat.id] },
+                  active && styles.categoryChipActive,
+                ]}
+                onPress={() => setSpecCategory(active ? null : cat.id)}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    active && styles.categoryChipTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {specCategory && (
+          <>
+            <Text style={styles.hint}>Choose how you want to be called</Text>
+            <View style={styles.specWrap}>
+              {SPECIALIZATIONS[specCategory].map((spec) => {
+                const active = currentSpec === spec.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={spec}
+                    style={[styles.specChip, active && styles.specChipActive]}
+                    onPress={() => setSpecialization(spec)}
+                  >
+                    <Text
+                      style={[
+                        styles.specChipText,
+                        active && styles.specChipTextActive,
+                      ]}
+                    >
+                      {spec}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         <Text style={styles.label}>Phone</Text>
         <TextInput
@@ -149,17 +219,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   avatarSection: { alignItems: "center", paddingVertical: 24 },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  avatarInitial: { fontSize: 32, fontWeight: "700", color: colors.accentText },
-  avatarHint: { color: colors.textSecondary, fontSize: 13 },
   form: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -174,6 +233,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 8,
   },
+  hint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    marginBottom: 6,
+  },
   input: {
     backgroundColor: colors.background,
     borderRadius: 10,
@@ -185,6 +250,44 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
   },
+  chipsScroll: { marginBottom: 6 },
+  categoryChip: {
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginRight: 8,
+  },
+  categoryChipActive: { backgroundColor: colors.accent },
+  categoryChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  categoryChipTextActive: { color: colors.accentText },
+  specWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 6,
+  },
+  specChip: {
+    backgroundColor: colors.background,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  specChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  specChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  specChipTextActive: { color: colors.accentText },
   saveButton: {
     backgroundColor: colors.accent,
     borderRadius: 12,

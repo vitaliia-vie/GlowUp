@@ -1,23 +1,27 @@
+import { getServiceSuggestions } from "@/constants/catalog";
+import { CATEGORY_COLORS } from "@/constants/categoryColors";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    addService,
-    deleteService,
-    getServicesByMaster,
+  addService,
+  deleteService,
+  getServicesByMaster,
 } from "@/services/servicesApi";
 import { Service, SERVICE_CATEGORIES, ServiceCategory } from "@/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+
+const BROWSE_LIMIT = 10;
 
 export default function ServicesScreen() {
   const { profile } = useAuth();
@@ -27,10 +31,24 @@ export default function ServicesScreen() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
+  const [durationTouched, setDurationTouched] = useState(false);
   const [category, setCategory] = useState<ServiceCategory>(
     SERVICE_CATEGORIES[0].id,
   );
+  const [showAll, setShowAll] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isBrowsing = title.trim() === "";
+  const categoryLabel =
+    SERVICE_CATEGORIES.find((c) => c.id === category)?.label ?? "";
+
+  const suggestions = useMemo(
+    () => getServiceSuggestions(title, category),
+    [title, category],
+  );
+  const visibleSuggestions =
+    isBrowsing && !showAll ? suggestions.slice(0, BROWSE_LIMIT) : suggestions;
+  const hiddenCount = suggestions.length - visibleSuggestions.length;
 
   const loadServices = useCallback(async () => {
     if (!profile) return;
@@ -49,13 +67,24 @@ export default function ServicesScreen() {
     loadServices();
   }, [loadServices]);
 
+  const applySuggestion = (suggestion: {
+    title: string;
+    category: ServiceCategory;
+    durationMinutes: number;
+  }) => {
+    setTitle(suggestion.title);
+    setCategory(suggestion.category);
+    // Don't overwrite a duration the master typed in herself
+    if (!durationTouched) setDuration(String(suggestion.durationMinutes));
+  };
+
   const handleAddService = async () => {
     if (!profile) return;
 
     const priceNum = Number(price);
     const durationNum = Number(duration);
 
-    if (!title || !priceNum || !durationNum) {
+    if (!title.trim() || !priceNum || !durationNum) {
       Alert.alert(
         "Missing fields",
         "Please fill in title, price, and duration.",
@@ -66,7 +95,7 @@ export default function ServicesScreen() {
     setIsSubmitting(true);
     try {
       await addService(profile.uid, {
-        title,
+        title: title.trim(),
         category,
         price: priceNum,
         durationMinutes: durationNum,
@@ -74,6 +103,8 @@ export default function ServicesScreen() {
       setTitle("");
       setPrice("");
       setDuration("");
+      setDurationTouched(false);
+      setShowAll(false);
       await loadServices();
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to add service.");
@@ -100,106 +131,156 @@ export default function ServicesScreen() {
     ]);
   };
 
+  const form = (
+    <View style={styles.form}>
+      <TextInput
+        style={styles.input}
+        placeholder="Service name, e.g. Manicure"
+        placeholderTextColor={colors.textSecondary}
+        value={title}
+        onChangeText={setTitle}
+      />
+
+      <Text style={styles.label}>Category</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        {SERVICE_CATEGORIES.map((cat) => (
+          <TouchableOpacity
+            key={cat.id}
+            style={[
+              styles.categoryChip,
+              category === cat.id && styles.categoryChipActive,
+            ]}
+            onPress={() => {
+              setCategory(cat.id);
+              setShowAll(false);
+            }}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                category === cat.id && styles.categoryChipTextActive,
+              ]}
+            >
+              {cat.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {visibleSuggestions.length > 0 && (
+        <>
+          <Text style={styles.label}>
+            {isBrowsing ? `Popular in ${categoryLabel}` : "Suggestions"}
+          </Text>
+          <View style={styles.suggestionsWrap}>
+            {visibleSuggestions.map((suggestion) => {
+              const showTag = !isBrowsing && suggestion.category !== category;
+              return (
+                <TouchableOpacity
+                  key={`${suggestion.category}-${suggestion.title}`}
+                  style={[
+                    styles.suggestionChip,
+                    { backgroundColor: CATEGORY_COLORS[suggestion.category] },
+                  ]}
+                  onPress={() => applySuggestion(suggestion)}
+                >
+                  <Text style={styles.suggestionText}>
+                    {suggestion.title}
+                    {showTag
+                      ? ` · ${SERVICE_CATEGORIES.find((c) => c.id === suggestion.category)?.label}`
+                      : ""}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            {hiddenCount > 0 && (
+              <TouchableOpacity
+                style={[styles.suggestionChip, styles.moreChip]}
+                onPress={() => setShowAll(true)}
+              >
+                <Text style={styles.suggestionText}>+{hiddenCount} more</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
+      )}
+
+      <View style={styles.row}>
+        <TextInput
+          style={[styles.input, styles.rowInput]}
+          placeholder="Price"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="numeric"
+          value={price}
+          onChangeText={setPrice}
+        />
+        <TextInput
+          style={[styles.input, styles.rowInput]}
+          placeholder="Duration (min)"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="numeric"
+          value={duration}
+          onChangeText={(text) => {
+            setDuration(text);
+            setDurationTouched(true);
+          }}
+        />
+      </View>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={handleAddService}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.addButtonText}>
+          {isSubmitting ? "Adding..." : "Add service"}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>My Services</Text>
 
-      <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Service name"
-          placeholderTextColor={colors.textSecondary}
-          value={title}
-          onChangeText={setTitle}
-        />
-
-        <Text style={styles.label}>Category</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryRow}
-        >
-          {SERVICE_CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[
-                styles.categoryChip,
-                category === cat.id && styles.categoryChipActive,
-              ]}
-              onPress={() => setCategory(cat.id)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  category === cat.id && styles.categoryChipTextActive,
-                ]}
-              >
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, styles.rowInput]}
-            placeholder="Price"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            value={price}
-            onChangeText={setPrice}
-          />
-          <TextInput
-            style={[styles.input, styles.rowInput]}
-            placeholder="Duration (min)"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            value={duration}
-            onChangeText={setDuration}
-          />
-        </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddService}
-          disabled={isSubmitting}
-        >
-          <Text style={styles.addButtonText}>
-            {isSubmitting ? "Adding..." : "Add service"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />
-      ) : (
-        <FlatList
-          data={services}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingTop: 8 }}
-          ListEmptyComponent={
+      <FlatList
+        data={services}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        ListHeaderComponent={form}
+        ListEmptyComponent={
+          isLoading ? (
+            <ActivityIndicator
+              style={{ marginTop: 24 }}
+              color={colors.accent}
+            />
+          ) : (
             <Text style={styles.emptyText}>
               No services yet — add your first one above.
             </Text>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.serviceCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.serviceTitle}>{item.title}</Text>
-                <Text style={styles.serviceMeta}>
-                  {
-                    SERVICE_CATEGORIES.find((c) => c.id === item.category)
-                      ?.label
-                  }{" "}
-                  · ${item.price} · {item.durationMinutes} min
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => handleDelete(item)}>
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
+          )
+        }
+        renderItem={({ item }) => (
+          <View style={styles.serviceCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.serviceTitle}>{item.title}</Text>
+              <Text style={styles.serviceMeta}>
+                {SERVICE_CATEGORIES.find((c) => c.id === item.category)?.label}{" "}
+                · ${item.price} · {item.durationMinutes} min
+              </Text>
             </View>
-          )}
-        />
-      )}
+            <TouchableOpacity onPress={() => handleDelete(item)}>
+              <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
     </View>
   );
 }
@@ -221,7 +302,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 12,
-    marginBottom: 8,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -260,6 +341,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   categoryChipTextActive: { color: colors.accentText },
+  suggestionsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  suggestionChip: {
+    borderRadius: 14,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  moreChip: {
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  suggestionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
   row: { flexDirection: "row", gap: 10 },
   rowInput: { flex: 1 },
   addButton: {
@@ -272,7 +374,7 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: "center",
     color: colors.textSecondary,
-    marginTop: 24,
+    marginTop: 8,
   },
   serviceCard: {
     flexDirection: "row",

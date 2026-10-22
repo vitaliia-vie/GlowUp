@@ -1,4 +1,5 @@
 import MasterPost, { clearMasterPostCache } from "@/components/MasterPost";
+import RoleSwitch from "@/components/RoleSwitch";
 import { CATEGORY_COLORS } from "@/constants/categoryColors";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,6 +138,12 @@ export default function ClientHome() {
             )}
           </TouchableOpacity>
         </View>
+
+        {profile?.role === "master" && (
+          <View style={styles.switchWrap}>
+            <RoleSwitch active="discover" />
+          </View>
+        )}
 
         <View style={styles.heroGreetingRow}>
           <Ionicons
@@ -288,6 +295,7 @@ const styles = StyleSheet.create({
   },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
   bellButton: { position: "relative", padding: 4 },
+  switchWrap: { marginTop: 14 },
   badge: {
     position: "absolute",
     top: 0,
@@ -305,7 +313,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 4,
+    marginTop: 12,
   },
   heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14 },
   heroTitle: {

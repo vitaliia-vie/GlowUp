@@ -4,36 +4,50 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, authNotice, clearAuthNotice } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleLogin = async () => {
+    setError(null);
     if (!email || !password) {
-      Alert.alert("Missing fields", "Please enter both email and password.");
+      setError("Please enter both email and password.");
       return;
     }
+
     setIsSubmitting(true);
     try {
-      await signIn(email, password);
-    } catch (error: any) {
-      Alert.alert("Login failed", error.message ?? "Please try again.");
+      await signIn(email.trim(), password);
+    } catch (e: any) {
+      setError(e.message ?? "Login failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const message = error ?? authNotice;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>GlowUp</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
+
+      {message ? (
+        <View style={styles.notice}>
+          <Text style={styles.noticeText}>{message}</Text>
+        </View>
+      ) : null}
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -41,7 +55,11 @@ export default function LoginScreen() {
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => {
+          setEmail(text);
+          setError(null);
+          clearAuthNotice();
+        }}
       />
       <TextInput
         style={styles.input}
@@ -49,8 +67,13 @@ export default function LoginScreen() {
         placeholderTextColor={colors.textSecondary}
         secureTextEntry
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(text) => {
+          setPassword(text);
+          setError(null);
+          clearAuthNotice();
+        }}
       />
+
       <TouchableOpacity
         style={styles.button}
         onPress={handleLogin}
@@ -60,6 +83,7 @@ export default function LoginScreen() {
           {isSubmitting ? "Signing in..." : "Sign In"}
         </Text>
       </TouchableOpacity>
+
       <Link href="/(auth)/register" style={styles.link}>
         <Text style={styles.linkText}>Don't have an account? Sign up</Text>
       </Link>
@@ -69,6 +93,7 @@ export default function LoginScreen() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -86,8 +111,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: 24,
   },
+  notice: {
+    backgroundColor: "#F6E6E3",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  noticeText: { color: colors.danger, fontSize: 13, lineHeight: 18 },
   input: {
     backgroundColor: colors.surface,
     borderRadius: 12,

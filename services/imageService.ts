@@ -1,12 +1,18 @@
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 
-const MAX_WIDTH = 900;
-const JPEG_QUALITY = 0.6;
-// Firestore document limit is 1 MiB, keep a safety margin
-const MAX_DATA_URI_LENGTH = 900_000;
+type PickOptions = {
+  maxWidth: number;
+  quality: number;
+  // Firestore document limit is 1 MiB, keep a safety margin
+  maxLength: number;
+};
 
-export async function pickPortfolioImage(): Promise<string | null> {
+async function pickSquareImage({
+  maxWidth,
+  quality,
+  maxLength,
+}: PickOptions): Promise<string | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsEditing: true,
@@ -19,12 +25,12 @@ export async function pickPortfolioImage(): Promise<string | null> {
   const asset = result.assets[0];
 
   const context = ImageManipulator.manipulate(asset.uri);
-  if (asset.width > MAX_WIDTH) {
-    context.resize({ width: MAX_WIDTH });
+  if (asset.width > maxWidth) {
+    context.resize({ width: maxWidth });
   }
   const image = await context.renderAsync();
   const saved = await image.saveAsync({
-    compress: JPEG_QUALITY,
+    compress: quality,
     format: SaveFormat.JPEG,
     base64: true,
   });
@@ -34,9 +40,18 @@ export async function pickPortfolioImage(): Promise<string | null> {
   }
 
   const dataUri = `data:image/jpeg;base64,${saved.base64}`;
-  if (dataUri.length > MAX_DATA_URI_LENGTH) {
+  if (dataUri.length > maxLength) {
     throw new Error("This image is too large. Please choose a smaller one.");
   }
 
   return dataUri;
+}
+
+export function pickPortfolioImage(): Promise<string | null> {
+  return pickSquareImage({ maxWidth: 900, quality: 0.6, maxLength: 900_000 });
+}
+
+// Small square: it is stored inside the user's profile document
+export function pickAvatarImage(): Promise<string | null> {
+  return pickSquareImage({ maxWidth: 320, quality: 0.7, maxLength: 150_000 });
 }

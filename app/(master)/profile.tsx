@@ -1,4 +1,4 @@
-import Avatar from "@/components/Avatar";
+import AvatarEditor from "@/components/AvatarEditor";
 import {
   extractInstagramHandle,
   isValidInstagramHandle,
@@ -95,7 +95,7 @@ export default function MasterProfileScreen() {
       />
 
       <View style={styles.avatarSection}>
-        <Avatar displayName={displayName} size={80} />
+        <AvatarEditor displayName={displayName} />
       </View>
 
       <View style={styles.form}>

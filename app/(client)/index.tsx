@@ -1,3 +1,4 @@
+import Avatar from "@/components/Avatar";
 import MasterPost, { clearMasterPostCache } from "@/components/MasterPost";
 import RoleSwitch from "@/components/RoleSwitch";
 import { CATEGORY_COLORS } from "@/constants/categoryColors";
@@ -112,6 +113,14 @@ export default function ClientHome() {
     loadMasters(true);
   };
 
+  const openMyProfile = () => {
+    router.push(
+      (profile?.role === "master"
+        ? "/(master)/profile"
+        : "/(client)/profile") as any,
+    );
+  };
+
   const selectedLabel = selectedCategory
     ? SERVICE_CATEGORIES.find((c) => c.id === selectedCategory)?.label
     : "All masters";
@@ -145,14 +154,24 @@ export default function ClientHome() {
           </View>
         )}
 
-        <View style={styles.heroGreetingRow}>
-          <Ionicons
-            name="hand-left-outline"
-            size={16}
-            color="rgba(255,255,255,0.8)"
-          />
-          <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.profileRow}
+          activeOpacity={0.8}
+          onPress={openMyProfile}
+        >
+          <View style={styles.avatarRing}>
+            <Avatar
+              displayName={profile?.displayName ?? ""}
+              avatarUrl={profile?.avatarUrl}
+              size={44}
+            />
+          </View>
+          <View>
+            <Text style={styles.heroGreeting}>Hi, {profile?.displayName}</Text>
+            <Text style={styles.heroHint}>Edit profile</Text>
+          </View>
+        </TouchableOpacity>
+
         <Text style={styles.heroTitle}>Find your next glow-up</Text>
         <Text style={styles.heroSubtitle}>
           Book trusted beauty pros near you, in seconds
@@ -309,18 +328,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   badgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "700" },
-  heroGreetingRow: {
+  profileRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 12,
+    gap: 12,
+    marginTop: 14,
   },
-  heroGreeting: { color: "rgba(255,255,255,0.8)", fontSize: 14 },
+  avatarRing: {
+    padding: 2,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  heroGreeting: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
+  heroHint: { color: "rgba(255,255,255,0.65)", fontSize: 12, marginTop: 1 },
   heroTitle: {
     color: colors.accentText,
     fontSize: 26,
     fontWeight: "700",
-    marginTop: 6,
+    marginTop: 16,
   },
   heroSubtitle: {
     color: "rgba(255,255,255,0.75)",

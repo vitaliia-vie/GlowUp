@@ -87,7 +87,11 @@ export default function MasterProfileScreen() {
 
           <View style={styles.heroRow}>
             <View style={styles.avatarRing}>
-              <Avatar displayName={master.displayName} size={64} />
+                        <Avatar
+            displayName={master.displayName}
+            avatarUrl={master.avatarUrl}
+            size={64}
+          />
             </View>
             <View style={styles.heroInfo}>
               <Text style={styles.masterName} numberOfLines={2}>

@@ -3,21 +3,21 @@ import { CATEGORY_COLORS } from "@/constants/categoryColors";
 import { colors } from "@/constants/theme";
 import { getPortfolioPreview } from "@/services/portfolioApi";
 import {
-    PortfolioItem,
-    SERVICE_CATEGORIES,
-    ServiceCategory,
-    UserProfile,
+  PortfolioItem,
+  SERVICE_CATEGORIES,
+  ServiceCategory,
+  UserProfile,
 } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const PREVIEW_COUNT = 3;
@@ -66,7 +66,11 @@ export default function MasterPost({ master, categories }: Props) {
       onPress={() => router.push(`/(client)/master/${master.uid}`)}
     >
       <View style={styles.header}>
-        <Avatar displayName={master.displayName} size={44} />
+                <Avatar
+          displayName={master.displayName}
+          avatarUrl={master.avatarUrl}
+          size={44}
+        />
         <View style={styles.headerInfo}>
           <Text style={styles.name} numberOfLines={1}>
             {master.displayName}

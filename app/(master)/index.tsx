@@ -204,7 +204,11 @@ export default function MasterHome() {
 
         <View style={styles.profileRow}>
           <View style={styles.avatarRing}>
-            <Avatar displayName={profile?.displayName ?? ""} size={56} />
+                        <Avatar
+              displayName={profile?.displayName ?? ""}
+              avatarUrl={profile?.avatarUrl}
+              size={56}
+            />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroGreeting}>{greeting()},</Text>

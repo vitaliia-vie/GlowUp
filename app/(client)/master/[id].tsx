@@ -2,6 +2,8 @@ import Avatar from "@/components/Avatar";
 import InstagramPreview from "@/components/InstagramPreview";
 import StarRating from "@/components/StarRating";
 import { colors } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFavorites } from "@/hooks/useFavorites";
 import { getMasterProfile } from "@/services/mastersApi";
 import { getPortfolioByMaster } from "@/services/portfolioApi";
 import { getReviewsByMaster, summarizeReviews } from "@/services/reviewsApi";
@@ -29,7 +31,8 @@ const PHOTO_SIZE = Math.floor(
 export default function MasterProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-
+  const { profile } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [master, setMaster] = useState<UserProfile | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -155,6 +158,18 @@ export default function MasterProfileScreen() {
                 color="#FFFFFF"
               />
             </TouchableOpacity>
+                        {master.uid !== profile?.uid && (
+              <TouchableOpacity
+                style={styles.messageButton}
+                onPress={() => toggleFavorite(master.uid)}
+              >
+                <Ionicons
+                  name={isFavorite(master.uid) ? "heart" : "heart-outline"}
+                  size={20}
+                  color={isFavorite(master.uid) ? "#F08CA3" : "#FFFFFF"}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

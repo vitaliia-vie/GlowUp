@@ -1,11 +1,15 @@
 import Avatar from "@/components/Avatar";
 import MasterPost, { clearMasterPostCache } from "@/components/MasterPost";
 import RoleSwitch from "@/components/RoleSwitch";
+import { getServiceSuggestions } from "@/constants/catalog";
 import { CATEGORY_COLORS } from "@/constants/categoryColors";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMastersByCategory } from "@/services/mastersApi";
+import { useFavorites } from "@/hooks/useFavorites";
+import { subscribeToChats } from "@/services/chatApi";
+import { getMasterProfile } from "@/services/mastersApi";
 import { subscribeToNotifications } from "@/services/notificationsApi";
+import { getAllServices } from "@/services/servicesApi";
 import { SERVICE_CATEGORIES, ServiceCategory, UserProfile } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -18,24 +22,37 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
+const CATEGORY_ORDER = SERVICE_CATEGORIES.map((c) => c.id);
+
 export default function ClientHome() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
+  const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
   const [masters, setMasters] = useState<UserProfile[]>([]);
   const [categoriesByMaster, setCategoriesByMaster] = useState<
     Record<string, ServiceCategory[]>
   >({});
+  // Lower-case service titles of every master, used by the search
+  const [titlesByMaster, setTitlesByMaster] = useState<
+    Record<string, string[]>
+  >({});
+
   const [selectedCategory, setSelectedCategory] =
     useState<ServiceCategory | null>(null);
+  const [showSaved, setShowSaved] = useState(false);
+  const [search, setSearch] = useState("");
+
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadChats, setUnreadChats] = useState(0);
 
   const loadMasters = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -44,29 +61,35 @@ export default function ClientHome() {
       setIsLoading(true);
     }
     try {
-      const results = await Promise.all(
-        SERVICE_CATEGORIES.map(async (cat) => ({
-          category: cat.id,
-          masters: await getMastersByCategory(cat.id),
-        })),
-      );
+      const services = await getAllServices();
 
-      // A master offering services in several categories appears once,
-      // with all of their categories attached.
-      const byId = new Map<string, UserProfile>();
       const categories: Record<string, ServiceCategory[]> = {};
-      for (const { category, masters: list } of results) {
-        for (const master of list) {
-          byId.set(master.uid, master);
-          if (!categories[master.uid]) categories[master.uid] = [];
-          categories[master.uid].push(category);
+      const titles: Record<string, string[]> = {};
+      for (const service of services) {
+        if (!categories[service.masterId]) {
+          categories[service.masterId] = [];
+          titles[service.masterId] = [];
         }
+        if (!categories[service.masterId].includes(service.category)) {
+          categories[service.masterId].push(service.category);
+        }
+        titles[service.masterId].push(service.title.toLowerCase());
+      }
+      for (const id of Object.keys(categories)) {
+        categories[id].sort(
+          (a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b),
+        );
       }
 
-      setMasters(
-        Array.from(byId.values()).sort((a, b) => b.createdAt - a.createdAt),
+      // Only masters who offer at least one service can be booked
+      const profiles = await Promise.all(
+        Object.keys(categories).map((id) => getMasterProfile(id)),
       );
+      const list = profiles.filter((p): p is UserProfile => p !== null);
+
+      setMasters(list.sort((a, b) => b.createdAt - a.createdAt));
       setCategoriesByMaster(categories);
+      setTitlesByMaster(titles);
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to load masters.");
     } finally {
@@ -90,6 +113,15 @@ export default function ClientHome() {
     return unsubscribe;
   }, [profile]);
 
+  useEffect(() => {
+    if (!profile?.uid) return;
+    return subscribeToChats(profile.uid, (chats) => {
+      setUnreadChats(chats.filter((chat) => chat.unread).length);
+    });
+  }, [profile?.uid]);
+
+  const normalizedSearch = search.trim().toLowerCase();
+
   const visibleMasters = useMemo(
     () =>
       masters
@@ -98,9 +130,54 @@ export default function ClientHome() {
           (master) =>
             !selectedCategory ||
             categoriesByMaster[master.uid]?.includes(selectedCategory),
-        ),
-    [masters, categoriesByMaster, selectedCategory, profile?.uid],
+        )
+        .filter((master) => !showSaved || favoriteIds.includes(master.uid))
+        .filter((master) => {
+          if (!normalizedSearch) return true;
+          const categoryLabels = (categoriesByMaster[master.uid] ?? []).map(
+            (id) => SERVICE_CATEGORIES.find((c) => c.id === id)?.label ?? "",
+          );
+          const haystack = [
+            master.displayName,
+            master.specialization ?? "",
+            ...(titlesByMaster[master.uid] ?? []),
+            ...categoryLabels,
+          ]
+            .join(" ")
+            .toLowerCase();
+          return normalizedSearch
+            .split(/\s+/)
+            .every((token) => haystack.includes(token));
+        }),
+    [
+      masters,
+      categoriesByMaster,
+      titlesByMaster,
+      selectedCategory,
+      showSaved,
+      favoriteIds,
+      normalizedSearch,
+      profile?.uid,
+    ],
   );
+
+  // Suggestions come from the catalog, but only services that some master
+  // really offers
+  const suggestions = useMemo(() => {
+    if (normalizedSearch.length < 2) return [];
+    const offered = new Set(Object.values(titlesByMaster).flat());
+    return getServiceSuggestions(search, selectedCategory ?? "nails", 24)
+      .filter((s) => offered.has(s.title.toLowerCase()))
+      .slice(0, 6);
+  }, [search, normalizedSearch, selectedCategory, titlesByMaster]);
+
+  const hasFilters = Boolean(selectedCategory || showSaved || normalizedSearch);
+
+  const resetFilters = () => {
+    setSelectedCategory(null);
+    setShowSaved(false);
+    setSearch("");
+  };
 
   const handleSelectCategory = (category: ServiceCategory) => {
     // Tapping the active category again clears the filter
@@ -123,7 +200,22 @@ export default function ClientHome() {
 
   const selectedLabel = selectedCategory
     ? SERVICE_CATEGORIES.find((c) => c.id === selectedCategory)?.label
-    : "All masters";
+    : null;
+
+  const captionParts = [
+    showSaved ? "Saved" : null,
+    selectedLabel,
+    normalizedSearch ? `"${search.trim()}"` : null,
+  ].filter(Boolean);
+  const caption = captionParts.length > 0 ? captionParts.join(" · ") : "All masters";
+
+  const emptyText = showSaved && favoriteIds.length === 0
+    ? "You haven't saved anyone yet. Tap the heart on a master to keep them here."
+    : normalizedSearch
+      ? `No masters match "${search.trim()}".`
+      : selectedCategory
+        ? "No masters in this category yet."
+        : "No masters have joined yet — check back soon.";
 
   const header = (
     <View>
@@ -133,19 +225,42 @@ export default function ClientHome() {
             <Text style={styles.signOut}>Sign out</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.bellButton}
-            onPress={() => router.push("/(client)/notifications")}
-          >
-            <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.topIcons}>
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => router.push("/(master)/messages")}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={22}
+                color="#FFFFFF"
+              />
+              {unreadChats > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadChats > 9 ? "9+" : unreadChats}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => router.push("/(master)/notifications")}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color="#FFFFFF"
+              />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {profile?.role === "master" && (
@@ -186,35 +301,101 @@ export default function ClientHome() {
         </TouchableOpacity>
       </View>
 
+      {/* Search */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBox}>
+          <Ionicons
+            name="search-outline"
+            size={18}
+            color={colors.textSecondary}
+          />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search masters or services"
+            placeholderTextColor={colors.textSecondary}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearch("")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {suggestions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.suggestionsRow}
+          >
+            {suggestions.map((suggestion) => (
+              <TouchableOpacity
+                key={`${suggestion.category}-${suggestion.title}`}
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: CATEGORY_COLORS[suggestion.category] },
+                ]}
+                onPress={() => setSearch(suggestion.title)}
+              >
+                <Text style={styles.suggestionText}>{suggestion.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
       <View style={styles.categoriesSection}>
         <Text style={styles.sectionTitle}>Categories</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.chipsRow}
         >
           <TouchableOpacity
             style={[
               styles.chip,
-              styles.chipAll,
-              selectedCategory === null && styles.chipActive,
+              styles.chipPlain,
+              !hasFilters && styles.chipActive,
             ]}
-            onPress={() => setSelectedCategory(null)}
+            onPress={resetFilters}
           >
             <Ionicons
               name="apps-outline"
               size={14}
-              color={
-                selectedCategory === null ? colors.accentText : colors.textPrimary
-              }
+              color={!hasFilters ? colors.accentText : colors.textPrimary}
             />
-            <Text
-              style={[
-                styles.chipText,
-                selectedCategory === null && styles.chipTextActive,
-              ]}
-            >
+            <Text style={[styles.chipText, !hasFilters && styles.chipTextActive]}>
               All masters
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.chip,
+              styles.chipPlain,
+              showSaved && styles.chipActive,
+            ]}
+            onPress={() => setShowSaved((current) => !current)}
+          >
+            <Ionicons
+              name={showSaved ? "heart" : "heart-outline"}
+              size={14}
+              color={showSaved ? colors.accentText : colors.textPrimary}
+            />
+            <Text style={[styles.chipText, showSaved && styles.chipTextActive]}>
+              Saved
             </Text>
           </TouchableOpacity>
 
@@ -243,7 +424,7 @@ export default function ClientHome() {
 
         {!isLoading && (
           <Text style={styles.feedCaption}>
-            {selectedLabel} · {visibleMasters.length}{" "}
+            {caption} · {visibleMasters.length}{" "}
             {visibleMasters.length === 1 ? "master" : "masters"}
           </Text>
         )}
@@ -255,11 +436,16 @@ export default function ClientHome() {
     <FlatList
       style={styles.container}
       data={visibleMasters}
+      extraData={favoriteIds}
       keyExtractor={(item) => `${item.uid}-${refreshKey}`}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       renderItem={({ item }) => (
         <MasterPost
           master={item}
           categories={categoriesByMaster[item.uid] ?? []}
+          isFavorite={isFavorite(item.uid)}
+          onToggleFavorite={() => toggleFavorite(item.uid)}
         />
       )}
       ListHeaderComponent={header}
@@ -268,17 +454,13 @@ export default function ClientHome() {
           <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />
         ) : (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>
-              {selectedCategory
-                ? "No masters in this category yet."
-                : "No masters have joined yet — check back soon."}
-            </Text>
-            {selectedCategory && (
+            <Text style={styles.emptyText}>{emptyText}</Text>
+            {hasFilters && (
               <TouchableOpacity
-                style={styles.showAllButton}
-                onPress={() => setSelectedCategory(null)}
+                style={styles.clearButton}
+                onPress={resetFilters}
               >
-                <Text style={styles.showAllText}>Show all masters</Text>
+                <Text style={styles.clearText}>Clear filters</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -313,6 +495,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   signOut: { color: "rgba(255,255,255,0.7)", fontWeight: "600", fontSize: 13 },
+  topIcons: { flexDirection: "row", alignItems: "center", gap: 10 },
   bellButton: { position: "relative", padding: 4 },
   switchWrap: { marginTop: 14 },
   badge: {
@@ -364,7 +547,29 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   bookingsButtonText: { color: colors.accent, fontWeight: "700", fontSize: 15 },
-  categoriesSection: { marginTop: 24, marginBottom: 16 },
+
+  searchSection: { marginTop: 20, paddingHorizontal: 20 },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, padding: 0 },
+  suggestionsRow: { gap: 8, paddingTop: 10 },
+  suggestionChip: {
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  suggestionText: { fontSize: 13, fontWeight: "600", color: colors.textPrimary },
+
+  categoriesSection: { marginTop: 20, marginBottom: 16 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
@@ -381,7 +586,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 16,
   },
-  chipAll: {
+  chipPlain: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -396,8 +601,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   emptyWrap: { alignItems: "center", marginTop: 40, paddingHorizontal: 20 },
-  emptyText: { textAlign: "center", color: colors.textSecondary },
-  showAllButton: {
+  emptyText: {
+    textAlign: "center",
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  clearButton: {
     marginTop: 16,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -406,5 +615,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 18,
   },
-  showAllText: { color: colors.textPrimary, fontWeight: "600", fontSize: 13 },
+  clearText: { color: colors.textPrimary, fontWeight: "600", fontSize: 13 },
 });

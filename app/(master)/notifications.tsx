@@ -40,7 +40,11 @@ export default function MasterNotificationsScreen() {
     if (!notification.isRead) {
       await markAsRead(notification.id);
     }
-    if (notification.type === "new_booking") {
+    if (
+      notification.type === "new_booking" ||
+      notification.type === "booking_cancelled" ||
+      notification.type === "booking_rescheduled"
+    ) {
       router.push("/(master)/bookings");
     } else if (notification.type === "new_review" && notification.relatedId) {
       // relatedId is the master's own id: open the public profile with reviews

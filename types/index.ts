@@ -10,6 +10,7 @@ export interface UserProfile {
   // Master-only fields
   specialization?: string;
   instagram?: string; // username only, e.g. "anna.nails"
+  favoriteMasterIds?: string[]; // masters saved with the heart
   createdAt: number;
 }
 
@@ -73,6 +74,10 @@ export interface Booking {
   timeSlot: string; // "14:30"
   status: BookingStatus;
   createdAt: number;
+  cancelledBy?: "client" | "master";
+  cancelReason?: string;
+  rescheduledFrom?: { date: string; timeSlot: string };
+  rescheduleReason?: string;
 }
 
 export interface PortfolioItem {

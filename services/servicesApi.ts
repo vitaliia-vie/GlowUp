@@ -52,3 +52,11 @@ export async function updateService(
 export async function deleteService(serviceId: string): Promise<void> {
   await deleteDoc(doc(db, SERVICES_COLLECTION, serviceId));
 }
+// Every service of every master (used by the home feed for search and filters)
+export async function getAllServices(): Promise<Service[]> {
+  const snapshot = await getDocs(collection(db, SERVICES_COLLECTION));
+  return snapshot.docs.map((docSnap) => ({
+    id: docSnap.id,
+    ...(docSnap.data() as Omit<Service, "id">),
+  }));
+}

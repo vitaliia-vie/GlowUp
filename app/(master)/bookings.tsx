@@ -233,6 +233,27 @@ export default function MasterBookingsScreen() {
                 {item.date} · {item.timeSlot}
               </Text>
 
+              {item.status === "pending" && item.rescheduledFrom && (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteTitle}>
+                    Moved from {item.rescheduledFrom.date} ·{" "}
+                    {item.rescheduledFrom.timeSlot}
+                  </Text>
+                  {item.rescheduleReason ? (
+                    <Text style={styles.noteText}>{item.rescheduleReason}</Text>
+                  ) : null}
+                </View>
+              )}
+
+              {item.status === "cancelled" && item.cancelledBy === "client" && (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteTitle}>Cancelled by the client</Text>
+                  {item.cancelReason ? (
+                    <Text style={styles.noteText}>{item.cancelReason}</Text>
+                  ) : null}
+                </View>
+              )}
+
               <View style={styles.actionsRow}>
                 {item.status === "pending" && (
                   <>
@@ -334,6 +355,15 @@ const styles = StyleSheet.create({
   statusBadge: { fontSize: 12, fontWeight: "700" },
   clientName: { color: colors.textSecondary, marginTop: 2 },
   dateTime: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
+  noteBox: {
+    marginTop: 10,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 10,
+    gap: 2,
+  },
+  noteTitle: { fontSize: 12, fontWeight: "700", color: colors.textPrimary },
+  noteText: { fontSize: 13, color: colors.textSecondary },
   actionsRow: {
     flexDirection: "row",
     gap: 10,

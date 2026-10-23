@@ -22,6 +22,7 @@ import {
 } from "react-native";
 
 const PREVIEW_COUNT = 3;
+const HEART_COLOR = "#D8546E";
 
 type Rating = { average: number; count: number };
 
@@ -38,9 +39,16 @@ export function clearMasterPostCache() {
 type Props = {
   master: UserProfile;
   categories: ServiceCategory[];
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
 };
 
-export default function MasterPost({ master, categories }: Props) {
+export default function MasterPost({
+  master,
+  categories,
+  isFavorite,
+  onToggleFavorite,
+}: Props) {
   const router = useRouter();
   const [photos, setPhotos] = useState<PortfolioItem[] | null>(
     previewCache.get(master.uid) ?? null,
@@ -123,11 +131,16 @@ export default function MasterPost({ master, categories }: Props) {
           </View>
         )}
 
-        <Ionicons
-          name="chevron-forward"
-          size={20}
-          color={colors.textSecondary}
-        />
+        <TouchableOpacity
+          onPress={onToggleFavorite}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name={isFavorite ? "heart" : "heart-outline"}
+            size={24}
+            color={isFavorite ? HEART_COLOR : colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
 
       {photos === null ? (

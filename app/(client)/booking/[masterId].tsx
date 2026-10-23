@@ -1,13 +1,23 @@
+import ReasonModal from "@/components/ReasonModal";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTimeSlots, getAvailability } from "@/services/availabilityApi";
 import {
   createBooking,
+  getBookingById,
   getBookingsForMasterOnDate,
+  rescheduleBooking,
 } from "@/services/bookingsApi";
 import { getMasterProfile } from "@/services/mastersApi";
 import { getServicesByMaster } from "@/services/servicesApi";
-import { Availability, SERVICE_CATEGORIES, Service, UserProfile } from "@/types";
+import {
+  Availability,
+  Booking,
+  SERVICE_CATEGORIES,
+  Service,
+  UserProfile,
+} from "@/types";
+import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -21,20 +31,35 @@ import {
 } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
 
+const RESCHEDULE_REASONS = [
+  "Schedule conflict",
+  "Need a different time",
+  "Feeling unwell",
+];
+
 function todayIso(): string {
   return new Date().toISOString().split("T")[0];
 }
 
 export default function BookingScreen() {
-  const { masterId, serviceId: preselectedServiceId } = useLocalSearchParams<{
+  const {
+    masterId,
+    serviceId: preselectedServiceId,
+    rescheduleId,
+  } = useLocalSearchParams<{
     masterId: string;
     serviceId?: string;
+    rescheduleId?: string;
   }>();
   const { profile } = useAuth();
   const router = useRouter();
+
+  const isRescheduling = Boolean(rescheduleId);
+
   const [master, setMaster] = useState<UserProfile | null>(null);
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const [existingBooking, setExistingBooking] = useState<Booking | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
     preselectedServiceId ?? null,
   );
@@ -44,6 +69,7 @@ export default function BookingScreen() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [reasonOpen, setReasonOpen] = useState(false);
 
   const selectedService = useMemo(
     () => services.find((s) => s.id === selectedServiceId) ?? null,
@@ -55,21 +81,42 @@ export default function BookingScreen() {
     (async () => {
       setIsLoadingInitial(true);
       try {
-        const [masterData, availabilityData, servicesData] = await Promise.all([
-          getMasterProfile(masterId),
-          getAvailability(masterId),
-          getServicesByMaster(masterId),
-        ]);
+        const [masterData, availabilityData, servicesData, bookingData] =
+          await Promise.all([
+            getMasterProfile(masterId),
+            getAvailability(masterId),
+            getServicesByMaster(masterId),
+            rescheduleId ? getBookingById(rescheduleId) : Promise.resolve(null),
+          ]);
         setMaster(masterData);
         setAvailability(availabilityData);
         setServices(servicesData);
+
+        if (rescheduleId) {
+          const canMove =
+            bookingData &&
+            bookingData.clientId === profile?.uid &&
+            (bookingData.status === "pending" ||
+              bookingData.status === "confirmed");
+
+          if (!bookingData || !canMove) {
+            Alert.alert(
+              "Can't reschedule",
+              "This booking can't be changed any more.",
+            );
+            router.back();
+            return;
+          }
+          setExistingBooking(bookingData);
+          setSelectedServiceId(bookingData.serviceId);
+        }
       } catch (error: any) {
         Alert.alert("Error", error.message ?? "Failed to load booking info.");
       } finally {
         setIsLoadingInitial(false);
       }
     })();
-  }, [masterId]);
+  }, [masterId, rescheduleId, profile?.uid, router]);
 
   const loadBookedSlots = useCallback(
     async (date: string) => {
@@ -130,6 +177,12 @@ export default function BookingScreen() {
       return;
     }
 
+    // Moving an existing booking asks for an (optional) reason first
+    if (isRescheduling) {
+      setReasonOpen(true);
+      return;
+    }
+
     setIsConfirming(true);
     try {
       await createBooking({
@@ -139,12 +192,31 @@ export default function BookingScreen() {
         date: selectedDate,
         timeSlot: selectedSlot,
       });
-      // Navigate first so the confirmation is visible on every platform —
-      // Alert.alert doesn't render a dialog on web previews.
       router.replace("/(client)/bookings");
       Alert.alert("Booked!", "Your appointment request has been sent.");
     } catch (error: any) {
       Alert.alert("Error", error.message ?? "Failed to create booking.");
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleSubmitReschedule = async (reason: string) => {
+    if (!profile || !existingBooking || !selectedSlot) return;
+    setIsConfirming(true);
+    try {
+      await rescheduleBooking(
+        existingBooking.id,
+        selectedDate,
+        selectedSlot,
+        reason,
+        profile.displayName,
+      );
+      setReasonOpen(false);
+      router.replace("/(client)/bookings");
+      Alert.alert("Sent for confirmation", "The master will confirm your new time.");
+    } catch (error: any) {
+      Alert.alert("Error", error.message ?? "Failed to move the booking.");
     } finally {
       setIsConfirming(false);
     }
@@ -175,12 +247,33 @@ export default function BookingScreen() {
     >
       <Stack.Screen
         options={{
-          title: master ? `Book with ${master.displayName}` : "Book",
+          title: isRescheduling
+            ? "Reschedule"
+            : master
+              ? `Book with ${master.displayName}`
+              : "Book",
           headerBackTitle: "Back",
         }}
       />
 
-      {/* Step 1: choose a service */}
+      {/* The appointment being moved */}
+      {isRescheduling && existingBooking && (
+        <>
+          <Text style={styles.sectionTitle}>Current appointment</Text>
+          <View style={styles.currentCard}>
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.currentText}>
+              {existingBooking.date} · {existingBooking.timeSlot}
+            </Text>
+          </View>
+        </>
+      )}
+
+      {/* Step 1: choose a service (fixed while rescheduling) */}
       <Text style={styles.sectionTitle}>
         {selectedService ? "Your service" : "Choose a service"}
       </Text>
@@ -189,10 +282,17 @@ export default function BookingScreen() {
         <View style={[styles.serviceCard, styles.serviceCardActive]}>
           {renderServiceInfo(selectedService)}
           <Text style={styles.servicePrice}>${selectedService.price}</Text>
-          <TouchableOpacity onPress={() => setSelectedServiceId(null)}>
-            <Text style={styles.changeText}>Change</Text>
-          </TouchableOpacity>
+          {!isRescheduling && (
+            <TouchableOpacity onPress={() => setSelectedServiceId(null)}>
+              <Text style={styles.changeText}>Change</Text>
+            </TouchableOpacity>
+          )}
         </View>
+      ) : isRescheduling ? (
+        <Text style={styles.emptyText}>
+          The original service is no longer available. Please cancel this
+          booking and book again.
+        </Text>
       ) : services.length === 0 ? (
         <Text style={styles.emptyText}>
           This master hasn't added any services yet.
@@ -234,7 +334,9 @@ export default function BookingScreen() {
             style={styles.calendar}
           />
 
-          <Text style={styles.sectionTitle}>Available times</Text>
+          <Text style={styles.sectionTitle}>
+            {isRescheduling ? "New time" : "Available times"}
+          </Text>
           {isLoadingSlots ? (
             <ActivityIndicator
               style={{ marginTop: 4 }}
@@ -282,15 +384,34 @@ export default function BookingScreen() {
                 !selectedSlot && styles.confirmButtonTextDisabled,
               ]}
             >
-              {isConfirming
+              {isConfirming && !isRescheduling
                 ? "Booking..."
                 : selectedSlot
-                  ? `Confirm ${selectedSlot}`
+                  ? isRescheduling
+                    ? `Move to ${selectedSlot}`
+                    : `Confirm ${selectedSlot}`
                   : "Select a time"}
             </Text>
           </TouchableOpacity>
         </>
       )}
+
+      <ReasonModal
+        visible={reasonOpen}
+        title="Reschedule appointment"
+        subtitle={
+          selectedSlot
+            ? `New time: ${selectedDate} at ${selectedSlot}. The master will need to confirm it.`
+            : undefined
+        }
+        placeholder="Reason (optional)"
+        quickReasons={RESCHEDULE_REASONS}
+        required={false}
+        confirmLabel="Send request"
+        isSubmitting={isConfirming}
+        onClose={() => setReasonOpen(false)}
+        onSubmit={handleSubmitReschedule}
+      />
     </ScrollView>
   );
 }
@@ -314,7 +435,18 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.textSecondary,
     marginHorizontal: 20,
+    lineHeight: 20,
   },
+  currentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 14,
+    padding: 14,
+    marginHorizontal: 20,
+  },
+  currentText: { fontSize: 15, fontWeight: "600", color: colors.textPrimary },
   serviceCard: {
     flexDirection: "row",
     alignItems: "center",

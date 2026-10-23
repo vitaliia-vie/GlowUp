@@ -34,6 +34,15 @@ export async function createBooking(
   return docRef.id;
 }
 
+export async function getBookingById(
+  bookingId: string,
+): Promise<Booking | null> {
+  const snap = await getDoc(doc(db, BOOKINGS_COLLECTION, bookingId));
+  return snap.exists()
+    ? { id: snap.id, ...(snap.data() as Omit<Booking, "id">) }
+    : null;
+}
+
 export async function updateBookingStatus(
   bookingId: string,
   status: BookingStatus,
@@ -49,7 +58,7 @@ export async function updateBookingStatus(
     await createNotification({
       userId: booking.clientId,
       type: "booking_confirmed",
-      title: "Booking confirmed! ✓",
+      title: "Booking confirmed",
       body: `Your appointment on ${booking.date} at ${booking.timeSlot} is confirmed`,
       relatedId: bookingId,
     });
@@ -70,6 +79,70 @@ export async function updateBookingStatus(
       relatedId: bookingId,
     });
   }
+}
+
+// Cancels with a reason and notifies the OTHER side of the booking
+export async function cancelBooking(
+  bookingId: string,
+  cancelledBy: "client" | "master",
+  reason: string,
+  actorName: string,
+): Promise<void> {
+  const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+  await updateDoc(bookingRef, {
+    status: "cancelled",
+    cancelledBy,
+    cancelReason: reason,
+  });
+
+  const snap = await getDoc(bookingRef);
+  if (!snap.exists()) return;
+  const booking = snap.data() as Booking;
+  const clientCancelled = cancelledBy === "client";
+
+  await createNotification({
+    userId: clientCancelled ? booking.masterId : booking.clientId,
+    type: "booking_cancelled",
+    title: clientCancelled ? "Booking cancelled by client" : "Booking cancelled",
+    body: `${actorName} cancelled the appointment on ${booking.date} at ${booking.timeSlot}. Reason: ${reason}`,
+    relatedId: bookingId,
+  });
+}
+
+// Moves a booking to a new time. It goes back to "pending" because the
+// master has to confirm the new time.
+export async function rescheduleBooking(
+  bookingId: string,
+  newDate: string,
+  newTimeSlot: string,
+  reason: string,
+  actorName: string,
+): Promise<void> {
+  const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+  const snap = await getDoc(bookingRef);
+  if (!snap.exists()) throw new Error("This booking no longer exists.");
+  const booking = snap.data() as Booking;
+
+  const sameDay = await getBookingsForMasterOnDate(booking.masterId, newDate);
+  if (sameDay.some((b) => b.timeSlot === newTimeSlot && b.id !== bookingId)) {
+    throw new Error("This time was just taken. Please choose another one.");
+  }
+
+  await updateDoc(bookingRef, {
+    date: newDate,
+    timeSlot: newTimeSlot,
+    status: "pending",
+    rescheduledFrom: { date: booking.date, timeSlot: booking.timeSlot },
+    rescheduleReason: reason,
+  });
+
+  await createNotification({
+    userId: booking.masterId,
+    type: "booking_rescheduled",
+    title: "Booking moved",
+    body: `${actorName} wants to move the appointment from ${booking.date} at ${booking.timeSlot} to ${newDate} at ${newTimeSlot}.${reason ? ` Reason: ${reason}` : ""}`,
+    relatedId: bookingId,
+  });
 }
 
 export async function getBookingsForMasterOnDate(

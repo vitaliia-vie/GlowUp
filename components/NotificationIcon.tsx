@@ -30,6 +30,11 @@ const CONFIG: Record<
     color: "#B08A2E",
     background: "#F7EFD9",
   },
+  booking_rescheduled: {
+    icon: "swap-horizontal-outline",
+    color: "#B08A2E",
+    background: "#F7EFD9",
+  },
   new_review: {
     icon: "star-outline",
     color: "#B08A2E",

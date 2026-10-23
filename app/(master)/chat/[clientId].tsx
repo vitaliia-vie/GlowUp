@@ -1,10 +1,11 @@
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    ChatMessage,
-    ensureChatExists,
-    sendMessage,
-    subscribeToMessages
+  ChatMessage,
+  ensureChatExists,
+  markChatRead,
+  sendMessage,
+  subscribeToMessages
 } from "@/services/chatApi";
 import { db } from "@/services/firebaseConfig";
 import { UserProfile } from "@/types";
@@ -12,16 +13,16 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function MasterChatScreen() {
@@ -77,7 +78,11 @@ export default function MasterChatScreen() {
     if (messages.length > 0) {
       flatListRef.current?.scrollToEnd({ animated: true });
     }
-  }, [messages]);
+    // Opening the chat (or receiving a message while it is open) = read
+    if (profile && chatId) {
+      markChatRead(chatId, profile.uid).catch(() => {});
+    }
+  }, [messages, profile, chatId]);
 
   const handleSend = async () => {
     if (!profile || !chatId || !text.trim()) return;

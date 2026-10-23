@@ -7,12 +7,14 @@ import {
 import { getMasterProfile } from "@/services/mastersApi";
 import { getServiceById } from "@/services/servicesApi";
 import { Booking, BookingStatus } from "@/types";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -39,12 +41,71 @@ const STATUS_COLOR: Record<BookingStatus, string> = {
   completed: "#5C5854",
 };
 
+// Local date as YYYY-MM-DD (matches the phone's clock, not UTC)
+function todayLocalIso(): string {
+  const d = new Date();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+// Firestore writes never fail while the connection is down, they just wait.
+// This turns a silent hang into a visible error.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            "The server did not answer in time. Check your internet connection and try again.",
+          ),
+        ),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+// Alert.alert does nothing on web previews, so fall back to a browser confirm
+function confirmAction(
+  title: string,
+  message: string,
+  confirmText: string,
+  onConfirm: () => void,
+  destructive = false,
+) {
+  if (Platform.OS === "web") {
+    const ok = (globalThis as any).confirm?.(`${title}\n\n${message}`);
+    if (ok) onConfirm();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: confirmText,
+      style: destructive ? "destructive" : "default",
+      onPress: onConfirm,
+    },
+  ]);
+}
+
 export default function MasterBookingsScreen() {
   const { profile } = useAuth();
   const router = useRouter();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Booking that is being updated right now (disables its buttons)
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadBookings = useCallback(
     async (isRefresh = false) => {
@@ -96,26 +157,37 @@ export default function MasterBookingsScreen() {
   }, [loadBookings]);
 
   const respond = async (booking: BookingRow, status: BookingStatus) => {
+    setBusyId(booking.id);
     try {
-      await updateBookingStatus(booking.id, status);
-      loadBookings();
+      await withTimeout(updateBookingStatus(booking.id, status), 12000);
+      // Update this card right away instead of reloading the whole list
+      setBookings((prev) =>
+        prev.map((b) => (b.id === booking.id ? { ...b, status } : b)),
+      );
     } catch (error: any) {
+      console.warn("Booking status update failed:", error);
       Alert.alert("Error", error.message ?? "Failed to update booking.");
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleDecline = (booking: BookingRow) => {
-    Alert.alert(
+    confirmAction(
       "Decline booking",
       `Decline ${booking.clientName}'s request for ${booking.serviceName}?`,
-      [
-        { text: "Keep it", style: "cancel" },
-        {
-          text: "Decline",
-          style: "destructive",
-          onPress: () => respond(booking, "cancelled"),
-        },
-      ],
+      "Decline",
+      () => respond(booking, "cancelled"),
+      true,
+    );
+  };
+
+  const handleComplete = (booking: BookingRow) => {
+    confirmAction(
+      "Mark as completed",
+      `${booking.clientName}'s visit is done? They will be asked to leave a review.`,
+      "Completed",
+      () => respond(booking, "completed"),
     );
   };
 
@@ -126,6 +198,8 @@ export default function MasterBookingsScreen() {
       </View>
     );
   }
+
+  const today = todayLocalIso();
 
   return (
     <View style={styles.container}>
@@ -144,58 +218,82 @@ export default function MasterBookingsScreen() {
         ListEmptyComponent={
           <Text style={styles.emptyText}>No booking requests yet.</Text>
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.serviceName}>{item.serviceName}</Text>
-              <Text
-                style={[
-                  styles.statusBadge,
-                  { color: STATUS_COLOR[item.status] },
-                ]}
-              >
-                {STATUS_LABEL[item.status]}
-              </Text>
-            </View>
-            <Text style={styles.clientName}>for {item.clientName}</Text>
-            <Text style={styles.dateTime}>
-              {item.date} · {item.timeSlot}
-            </Text>
+        renderItem={({ item }) => {
+          const isBusy = busyId === item.id;
 
-            <View style={styles.actionsRow}>
-              {item.status === "pending" && (
-                <>
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.serviceName}>{item.serviceName}</Text>
+                <Text
+                  style={[
+                    styles.statusBadge,
+                    { color: STATUS_COLOR[item.status] },
+                  ]}
+                >
+                  {STATUS_LABEL[item.status]}
+                </Text>
+              </View>
+              <Text style={styles.clientName}>for {item.clientName}</Text>
+              <Text style={styles.dateTime}>
+                {item.date} · {item.timeSlot}
+              </Text>
+
+              <View style={styles.actionsRow}>
+                {item.status === "pending" && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.confirmButton, isBusy && styles.disabled]}
+                      onPress={() => respond(item, "confirmed")}
+                      disabled={isBusy}
+                    >
+                      <Text style={styles.confirmButtonText}>
+                        {isBusy ? "Saving..." : "Confirm"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.declineButton, isBusy && styles.disabled]}
+                      onPress={() => handleDecline(item)}
+                      disabled={isBusy}
+                    >
+                      <Text style={styles.declineButtonText}>Decline</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {item.status === "confirmed" && item.date <= today && (
                   <TouchableOpacity
-                    style={styles.confirmButton}
-                    onPress={() => respond(item, "confirmed")}
+                    style={[styles.confirmButton, isBusy && styles.disabled]}
+                    onPress={() => handleComplete(item)}
+                    disabled={isBusy}
                   >
-                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                    <Text style={styles.confirmButtonText}>
+                      {isBusy ? "Saving..." : "Mark completed"}
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.declineButton}
-                    onPress={() => handleDecline(item)}
-                  >
-                    <Text style={styles.declineButtonText}>Decline</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-              <TouchableOpacity
-                style={styles.chatButton}
-                onPress={() => {
-                  router.push({
-                    pathname: "/(master)/chat/[clientId]" as any,
-                    params: {
-                      clientId: item.clientId,
-                      clientName: item.clientName,
-                    },
-                  });
-                }}
-              >
-                <Text style={styles.chatButtonText}>✉ Chat</Text>
-              </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.chatButton}
+                  onPress={() => {
+                    router.push({
+                      pathname: "/(master)/chat/[clientId]" as any,
+                      params: {
+                        clientId: item.clientId,
+                        clientName: item.clientName,
+                      },
+                    });
+                  }}
+                >
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={16}
+                    color={colors.textPrimary}
+                  />
+                  <Text style={styles.chatButtonText}>Chat</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -248,6 +346,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexWrap: "wrap",
   },
+  disabled: { opacity: 0.5 },
   confirmButton: {
     backgroundColor: colors.accent,
     borderRadius: 8,
@@ -268,6 +367,9 @@ const styles = StyleSheet.create({
   },
   declineButtonText: { color: colors.danger, fontWeight: "600", fontSize: 13 },
   chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,

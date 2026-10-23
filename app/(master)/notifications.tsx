@@ -42,6 +42,9 @@ export default function MasterNotificationsScreen() {
     }
     if (notification.type === "new_booking") {
       router.push("/(master)/bookings");
+    } else if (notification.type === "new_review" && notification.relatedId) {
+      // relatedId is the master's own id: open the public profile with reviews
+      router.push(`/(client)/master/${notification.relatedId}` as any);
     } else if (notification.type === "new_message" && notification.relatedId) {
       const clientId = notification.relatedId.split("_")[0];
       // @ts-ignore

@@ -17,6 +17,8 @@ export type NotificationType =
   | "new_booking"
   | "booking_confirmed"
   | "booking_cancelled"
+  | "booking_completed"
+  | "new_review"
   | "new_message";
 
 export interface AppNotification {

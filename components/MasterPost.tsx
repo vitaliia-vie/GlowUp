@@ -2,6 +2,7 @@ import Avatar from "@/components/Avatar";
 import { CATEGORY_COLORS } from "@/constants/categoryColors";
 import { colors } from "@/constants/theme";
 import { getPortfolioPreview } from "@/services/portfolioApi";
+import { getReviewsByMaster, summarizeReviews } from "@/services/reviewsApi";
 import {
   PortfolioItem,
   SERVICE_CATEGORIES,
@@ -22,12 +23,16 @@ import {
 
 const PREVIEW_COUNT = 3;
 
-// Photos are loaded lazily when a post appears on screen and kept here,
-// so scrolling back up doesn't download them again.
+type Rating = { average: number; count: number };
+
+// Photos and ratings are loaded lazily when a post appears on screen and
+// kept here, so scrolling back up doesn't download them again.
 const previewCache = new Map<string, PortfolioItem[]>();
+const ratingCache = new Map<string, Rating>();
 
 export function clearMasterPostCache() {
   previewCache.clear();
+  ratingCache.clear();
 }
 
 type Props = {
@@ -39,6 +44,9 @@ export default function MasterPost({ master, categories }: Props) {
   const router = useRouter();
   const [photos, setPhotos] = useState<PortfolioItem[] | null>(
     previewCache.get(master.uid) ?? null,
+  );
+  const [rating, setRating] = useState<Rating | null>(
+    ratingCache.get(master.uid) ?? null,
   );
 
   useEffect(() => {
@@ -59,6 +67,25 @@ export default function MasterPost({ master, categories }: Props) {
     };
   }, [master.uid, photos]);
 
+  useEffect(() => {
+    if (rating !== null) return;
+    let active = true;
+
+    getReviewsByMaster(master.uid)
+      .then((reviews) => {
+        const summary = summarizeReviews(reviews);
+        ratingCache.set(master.uid, summary);
+        if (active) setRating(summary);
+      })
+      .catch(() => {
+        if (active) setRating({ average: 0, count: 0 });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [master.uid, rating]);
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -66,7 +93,7 @@ export default function MasterPost({ master, categories }: Props) {
       onPress={() => router.push(`/(client)/master/${master.uid}`)}
     >
       <View style={styles.header}>
-                <Avatar
+        <Avatar
           displayName={master.displayName}
           avatarUrl={master.avatarUrl}
           size={44}
@@ -79,6 +106,23 @@ export default function MasterPost({ master, categories }: Props) {
             {master.specialization ?? "Beauty master"}
           </Text>
         </View>
+
+        {rating && (
+          <View style={styles.ratingPill}>
+            {rating.count > 0 ? (
+              <>
+                <Ionicons name="star" size={13} color="#D9A520" />
+                <Text style={styles.ratingText}>
+                  {rating.average.toFixed(1)}
+                </Text>
+                <Text style={styles.ratingCount}>({rating.count})</Text>
+              </>
+            ) : (
+              <Text style={styles.ratingNew}>New</Text>
+            )}
+          </View>
+        )}
+
         <Ionicons
           name="chevron-forward"
           size={20}
@@ -149,6 +193,18 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   name: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   specialization: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  ratingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  ratingText: { fontSize: 12, fontWeight: "700", color: colors.textPrimary },
+  ratingCount: { fontSize: 11, color: colors.textSecondary },
+  ratingNew: { fontSize: 11, fontWeight: "600", color: colors.textSecondary },
   photosRow: {
     flexDirection: "row",
     gap: 4,

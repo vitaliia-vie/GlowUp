@@ -25,6 +25,16 @@ const CONFIG: Record<
     color: colors.danger,
     background: "#F6E6E3",
   },
+  booking_completed: {
+    icon: "ribbon-outline",
+    color: "#B08A2E",
+    background: "#F7EFD9",
+  },
+  new_review: {
+    icon: "star-outline",
+    color: "#B08A2E",
+    background: "#F7EFD9",
+  },
   new_message: {
     icon: "chatbubble-ellipses-outline",
     color: colors.accent,

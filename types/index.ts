@@ -82,3 +82,14 @@ export interface PortfolioItem {
   caption?: string;
   createdAt: number;
 }
+export interface Review {
+  id: string; // same as bookingId: one review per booking
+  bookingId: string;
+  masterId: string;
+  clientId: string;
+  clientName: string;
+  serviceName: string;
+  rating: number; // 1..5
+  comment: string;
+  createdAt: number;
+}

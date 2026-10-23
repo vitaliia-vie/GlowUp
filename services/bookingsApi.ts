@@ -23,7 +23,6 @@ export async function createBooking(
     createdAt: Date.now(),
   });
 
- 
   await createNotification({
     userId: data.masterId,
     type: "new_booking",
@@ -60,6 +59,14 @@ export async function updateBookingStatus(
       type: "booking_cancelled",
       title: "Booking cancelled",
       body: `Your appointment on ${booking.date} at ${booking.timeSlot} was cancelled`,
+      relatedId: bookingId,
+    });
+  } else if (status === "completed") {
+    await createNotification({
+      userId: booking.clientId,
+      type: "booking_completed",
+      title: "How was your visit?",
+      body: "Leave a review to help others choose the right master",
       relatedId: bookingId,
     });
   }

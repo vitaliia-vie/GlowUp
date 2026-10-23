@@ -3,22 +3,22 @@ import NotificationIcon from "@/components/NotificationIcon";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    AppNotification,
-    markAllAsRead,
-    markAsRead,
-    subscribeToNotifications,
+  AppNotification,
+  markAllAsRead,
+  markAsRead,
+  subscribeToNotifications,
 } from "@/services/notificationsApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ClientNotificationsScreen() {
@@ -49,7 +49,8 @@ export default function ClientNotificationsScreen() {
       });
     } else if (
       notification.type === "booking_confirmed" ||
-      notification.type === "booking_cancelled"
+      notification.type === "booking_cancelled" ||
+      notification.type === "booking_completed"
     ) {
       router.push("/(client)/bookings");
     }

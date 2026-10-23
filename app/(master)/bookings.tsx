@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -75,7 +74,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// Alert.alert does nothing on web previews, so fall back to a browser confirm
+// Shows the app's own confirmation dialog (see components/DialogHost.tsx)
 function confirmAction(
   title: string,
   message: string,
@@ -83,11 +82,6 @@ function confirmAction(
   onConfirm: () => void,
   destructive = false,
 ) {
-  if (Platform.OS === "web") {
-    const ok = (globalThis as any).confirm?.(`${title}\n\n${message}`);
-    if (ok) onConfirm();
-    return;
-  }
   Alert.alert(title, message, [
     { text: "Cancel", style: "cancel" },
     {

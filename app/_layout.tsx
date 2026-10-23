@@ -1,3 +1,4 @@
+import DialogHost from "@/components/DialogHost";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
@@ -31,6 +32,8 @@ export default function RootLayout() {
       <AuthProvider>
         <RootNavigation />
       </AuthProvider>
+      {/* Replaces the system alerts with our own dialog */}
+      <DialogHost />
     </GestureHandlerRootView>
   );
 }
